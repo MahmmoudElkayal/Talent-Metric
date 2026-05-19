@@ -1,0 +1,63 @@
+{
+  "active_provider": "openrouter",
+  "fallback_order": [
+    "openrouter",
+    "openai",
+    "huggingface",
+    "ollama",
+    "lmstudio"
+  ],
+  "providers": {
+    "openrouter": {
+      "enabled": true,
+      "api_key": "",
+      "base_url": "https://openrouter.ai/api/v1",
+      "models": {
+        "default": "openai/gpt-4o-mini",
+        "skills": "openai/gpt-4o-mini",
+        "interview": "openai/gpt-4o-mini",
+        "resume": "openai/gpt-4o-mini",
+        "career": "openai/gpt-4o-mini"
+      }
+    },
+    "openai": {
+      "enabled": false,
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "models": {
+        "default": "gpt-4o-mini"
+      }
+    },
+    "huggingface": {
+      "enabled": false,
+      "api_key": "",
+      "model": "mistralai/Mistral-7B-Instruct-v0.3"
+    },
+    "ollama": {
+      "enabled": true,
+      "base_url": "http://localhost:11434",
+      "model": "llama3"
+    },
+    "lmstudio": {
+      "enabled": true,
+      "base_url": "http://localhost:1234",
+      "model": "local-model"
+    }
+  },
+  "site": {
+    "app_name": "Talent Metric",
+    "default_target_role": "???? ???????",
+    "interview_fields": [
+      "????????? ?????????",
+      "???????",
+      "???????",
+      "???????",
+      "??????? ???????",
+      "???????",
+      "????????",
+      "???????",
+      "????"
+    ],
+    "max_activity_items": 20
+  }
+}

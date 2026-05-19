@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="المقابلات التجريبية - ASK_tech">
-    <title>ASK_tech | المقابلات التجريبية</title>
+    <meta name="description" content="المقابلات التجريبية - Talent Metric">
+    <title>Talent Metric | المقابلات التجريبية</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -12,12 +12,11 @@
     <link rel="stylesheet" href="/AIStyle.css">
 </head>
 <body>
-    <!-- NAVBAR -->
     <nav class="navbar navbar-app" id="navbar">
         <div class="container nav-container">
             <a href="/" class="logo">
                 <span class="logo-icon"><i class="fas fa-rocket"></i></span>
-                <span class="logo-text">ASK<span class="logo-accent">_tech</span></span>
+                <span class="logo-text">Talent Metric</span>
             </a>
             <ul class="nav-links" id="navLinks">
                 <li><a href="/dashboard">لوحة التحكم</a></li>
@@ -33,14 +32,34 @@
 
     <main class="app-main">
         <div class="container">
-            <!-- Setup Section -->
+
+            <!-- SETUP -->
             <div id="interviewSetup">
                 <div class="page-header">
-                    <h1><i class="fas fa-microphone"></i> المقابلات التجريبية</h1>
-                    <p>تدرب على مقابلات العمل مع محاور ذكي يقدم لك تقييماً فورياً</p>
+                    <h1><i class="fas fa-microphone-lines"></i> المقابلات التجريبية</h1>
+                    <p>تدرب على مقابلات العمل مع محاور ذكي — نصي أو مرئي بالكامل</p>
                 </div>
 
-                <div class="interview-setup-grid">
+                <div class="interview-mode-selector">
+                    <button class="mode-card active" id="modeChatBtn" data-mode="chat">
+                        <div class="mode-icon"><i class="fas fa-comments"></i></div>
+                        <div class="mode-info">
+                            <h3>مقابلة نصية</h3>
+                            <p>اكتب أو تحدث — المحاور يقيّم إجاباتك فوراً</p>
+                        </div>
+                        <div class="mode-check"><i class="fas fa-check-circle"></i></div>
+                    </button>
+                    <button class="mode-card" id="modeVideoBtn" data-mode="video">
+                        <div class="mode-icon video"><i class="fas fa-video"></i></div>
+                        <div class="mode-info">
+                            <h3>مقابلة مرئية</h3>
+                            <p>كاميرا + صوت — تجربة المقابلة الحقيقية</p>
+                        </div>
+                        <div class="mode-check"><i class="fas fa-check-circle"></i></div>
+                    </button>
+                </div>
+
+                <div class="interview-setup-grid" style="margin-top:1.5rem">
                     <div class="dash-card">
                         <h3 class="dash-card-title"><i class="fas fa-briefcase"></i> الوظيفة المستهدفة</h3>
                         <div class="form-group">
@@ -64,30 +83,49 @@
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-primary btn-lg btn-block" id="startInterviewBtn">
+
+                <div id="videoPreviewSetup" style="display:none;margin-top:1rem" class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-camera"></i> معاينة الكاميرا</h3>
+                    <div class="video-preview-wrap">
+                        <video id="previewVideo" autoplay muted playsinline></video>
+                        <div class="video-preview-label">معاينة مباشرة</div>
+                    </div>
+                    <div class="cam-status" id="camStatus">
+                        <span class="cam-dot" id="camDot"></span>
+                        <span id="camStatusText">جاري تفعيل الكاميرا...</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg btn-block" id="startInterviewBtn" style="margin-top:1.5rem">
                     <i class="fas fa-play"></i> ابدأ المقابلة
                 </button>
             </div>
 
-            <!-- Chat Section (hidden initially) -->
-            <div id="interviewChat" style="display: none;">
+            <!-- CHAT MODE -->
+            <div id="interviewChat" style="display:none">
                 <div class="interview-header">
                     <div class="interview-info">
-                        <h2><i class="fas fa-microphone"></i> المقابلة جارية</h2>
+                        <h2><i class="fas fa-comments"></i> المقابلة النصية</h2>
                         <span class="interview-badge" id="questionCounter">السؤال 1</span>
                     </div>
-                    <button class="btn btn-danger btn-sm" id="endInterviewBtn">
-                        <i class="fas fa-stop"></i> إنهاء المقابلة
-                    </button>
+                    <div style="display:flex;gap:.5rem">
+                        <button class="btn btn-glass btn-sm" id="toggleTtsBtn" title="تشغيل/إيقاف الصوت">
+                            <i class="fas fa-volume-high"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" id="endInterviewBtn">
+                            <i class="fas fa-stop"></i> إنهاء
+                        </button>
+                    </div>
                 </div>
-
                 <div class="chat-container" id="chatContainer">
                     <div class="chat-messages" id="chatMessages"></div>
                 </div>
-
                 <div class="chat-input-area">
                     <div class="chat-input-wrapper">
                         <textarea id="chatInput" placeholder="اكتب إجابتك هنا..." rows="3"></textarea>
+                        <button class="btn btn-glass chat-mic-btn" id="chatMicBtn" title="إجابة صوتية">
+                            <i class="fas fa-microphone"></i>
+                        </button>
                         <button class="btn btn-primary chat-send-btn" id="sendAnswerBtn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
@@ -95,7 +133,85 @@
                 </div>
             </div>
 
-            <!-- Summary Modal -->
+            <!-- VIDEO MODE -->
+            <div id="interviewVideo" style="display:none">
+                <div class="interview-header">
+                    <div class="interview-info">
+                        <h2><i class="fas fa-video"></i> المقابلة المرئية</h2>
+                        <span class="interview-badge" id="videoQuestionCounter">السؤال 1</span>
+                        <span class="live-badge"><span class="live-dot"></span> LIVE</span>
+                    </div>
+                    <div style="display:flex;gap:.5rem;align-items:center">
+                        <span class="interview-timer" id="interviewTimer">00:00</span>
+                        <button class="btn btn-danger btn-sm" id="endVideoInterviewBtn">
+                            <i class="fas fa-stop"></i> إنهاء
+                        </button>
+                    </div>
+                </div>
+
+                <div class="video-interview-layout">
+                    <div class="video-panel">
+                        <div class="video-feed-wrap">
+                            <video id="interviewVideoFeed" autoplay muted playsinline class="video-feed"></video>
+                            <div class="video-overlay-badge">أنت</div>
+                            <div class="ai-avatar-panel">
+                                <div class="ai-avatar" id="aiAvatarEl">
+                                    <div class="ai-avatar-rings">
+                                        <div class="ai-ring ring-1"></div>
+                                        <div class="ai-ring ring-2"></div>
+                                        <div class="ai-ring ring-3"></div>
+                                    </div>
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <span>المحاور الذكي</span>
+                                <div class="ai-speaking-indicator" id="aiSpeakingIndicator">
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="video-controls">
+                            <button class="vid-ctrl-btn" id="toggleMicBtn" title="كتم الميكروفون">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="vid-ctrl-btn" id="toggleCamBtn" title="إيقاف الكاميرا">
+                                <i class="fas fa-video"></i>
+                            </button>
+                            <button class="vid-ctrl-btn active" id="toggleAiVoiceBtn" title="صوت الذكاء">
+                                <i class="fas fa-volume-high"></i>
+                            </button>
+                            <button class="vid-ctrl-btn danger" id="endVideoCallBtn">
+                                <i class="fas fa-phone-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="video-transcript-panel">
+                        <div class="transcript-header">
+                            <span><i class="fas fa-align-left"></i> نص المقابلة</span>
+                        </div>
+                        <div class="transcript-messages" id="videoMessages"></div>
+                        <div class="stt-area">
+                            <div class="stt-status" id="sttStatus">
+                                <div class="stt-wave" id="sttWave">
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                </div>
+                                <span id="sttStatusText">اضغط الميكروفون للإجابة</span>
+                            </div>
+                            <div class="stt-text-wrap">
+                                <textarea id="videoTranscriptInput" placeholder="يمكنك الكتابة أو التحدث بصوتك..." rows="2"></textarea>
+                                <button class="stt-mic-btn" id="sttMicBtn">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button class="btn btn-primary stt-send-btn" id="videoSendBtn">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUMMARY MODAL -->
             <div class="modal-overlay" id="interviewSummaryModal" style="display:none;">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -108,8 +224,8 @@
                                 <svg viewBox="0 0 120 120">
                                     <defs>
                                         <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stop-color="#6C5CE7"/>
-                                            <stop offset="100%" stop-color="#00D2D3"/>
+                                            <stop offset="0%" stop-color="#3B82F6"/>
+                                            <stop offset="100%" stop-color="#60A5FA"/>
                                         </linearGradient>
                                     </defs>
                                     <circle cx="60" cy="60" r="54" class="score-bg"/>
@@ -141,6 +257,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </main>
     <script src="/AIScript.js"></script>
