@@ -1,0 +1,20 @@
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual Environments
+venv/
+env/
+.venv/
+.env
+
+# Application Secrets & Local Data
+admin_settings.json
+
+# PDF Exports / Temporary Files
+*.pdf
+*.log
+.DS_Store
