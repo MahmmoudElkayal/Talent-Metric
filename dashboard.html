@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="لوحة التحكم - ASK_tech">
+    <title>ASK_tech | لوحة التحكم</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">ASK<span class="logo-accent">_tech</span></span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard" class="active">لوحة التحكم</a></li>
+                <li><a href="/skills">تقييم المهارات</a></li>
+                <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career">المسار المهني</a></li>
+                <li>
+                    <button class="btn btn-outline btn-sm" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> خروج
+                    </button>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+            <!-- Welcome Banner -->
+            <div class="welcome-banner" id="welcomeBanner">
+                <div class="welcome-content">
+                    <h1>مرحباً، <span id="userName">المستخدم</span> 👋</h1>
+                    <p>تابع تقدمك وابدأ بتطوير مسارك المهني اليوم</p>
+                </div>
+                <div class="welcome-date" id="currentDate"></div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid" id="kpiGrid">
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-skills"><i class="fas fa-bullseye"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpiAssessments">0</span>
+                        <span class="kpi-label">تقييم مهارات</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-interview"><i class="fas fa-microphone"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpiInterviews">0</span>
+                        <span class="kpi-label">مقابلة تجريبية</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-resume"><i class="fas fa-file-lines"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpiResumes">0</span>
+                        <span class="kpi-label">سيرة ذاتية</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon kpi-icon-career"><i class="fas fa-route"></i></div>
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpiCareers">0</span>
+                        <span class="kpi-label">مسار مهني</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions + Activity -->
+            <div class="dashboard-grid">
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-bolt"></i> إجراءات سريعة</h3>
+                    <div class="quick-actions">
+                        <a href="/skills" class="quick-action-btn">
+                            <i class="fas fa-bullseye"></i>
+                            <span>تقييم مهاراتي</span>
+                        </a>
+                        <a href="/interview" class="quick-action-btn">
+                            <i class="fas fa-microphone"></i>
+                            <span>بدء مقابلة</span>
+                        </a>
+                        <a href="/resume" class="quick-action-btn">
+                            <i class="fas fa-file-lines"></i>
+                            <span>بناء سيرتي</span>
+                        </a>
+                        <a href="/career" class="quick-action-btn">
+                            <i class="fas fa-route"></i>
+                            <span>استكشاف المسارات</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-clock-rotate-left"></i> النشاطات الأخيرة</h3>
+                    <div class="activity-feed" id="activityFeed">
+                        <div class="activity-empty">
+                            <i class="fas fa-inbox"></i>
+                            <p>لا توجد نشاطات بعد. ابدأ باستخدام أدوات المنصة!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/AIScript.js"></script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="تقييم المهارات وتحليل الفجوات - ASK_tech">
+    <title>ASK_tech | تقييم المهارات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">ASK<span class="logo-accent">_tech</span></span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard">لوحة التحكم</a></li>
+                <li><a href="/skills" class="active">تقييم المهارات</a></li>
+                <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career">المسار المهني</a></li>
+                <li><button class="btn btn-outline btn-sm" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> خروج</button></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة"><span></span><span></span><span></span></button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-bullseye"></i> تقييم المهارات وتحليل الفجوات</h1>
+                <p>أدخل مهاراتك الحالية والوظيفة المستهدفة ودع الذكاء الاصطناعي يحلل لك</p>
+            </div>
+
+            <!-- Skills Input Section -->
+            <div class="skills-input-section" id="skillsInputSection">
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-bullseye"></i> الوظيفة المستهدفة</h3>
+                    <div class="form-group">
+                        <input type="text" id="targetRole" placeholder="مثال: مهندس برمجيات، محلل بيانات، مدير مشاريع" class="form-input-lg">
+                    </div>
+                </div>
+
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-tags"></i> اختر مهاراتك</h3>
+                    <div class="skill-categories">
+                        <div class="skill-category">
+                            <h4>البرمجة والتطوير</h4>
+                            <div class="skill-chips">
+                                <button class="skill-chip" data-skill="Python">Python</button>
+                                <button class="skill-chip" data-skill="JavaScript">JavaScript</button>
+                                <button class="skill-chip" data-skill="HTML/CSS">HTML/CSS</button>
+                                <button class="skill-chip" data-skill="React">React</button>
+                                <button class="skill-chip" data-skill="Node.js">Node.js</button>
+                                <button class="skill-chip" data-skill="SQL">SQL</button>
+                                <button class="skill-chip" data-skill="Java">Java</button>
+                                <button class="skill-chip" data-skill="C#">C#</button>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <h4>البيانات والذكاء الاصطناعي</h4>
+                            <div class="skill-chips">
+                                <button class="skill-chip" data-skill="تحليل البيانات">تحليل البيانات</button>
+                                <button class="skill-chip" data-skill="Machine Learning">Machine Learning</button>
+                                <button class="skill-chip" data-skill="Power BI">Power BI</button>
+                                <button class="skill-chip" data-skill="Excel المتقدم">Excel المتقدم</button>
+                                <button class="skill-chip" data-skill="Deep Learning">Deep Learning</button>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <h4>المهارات الشخصية</h4>
+                            <div class="skill-chips">
+                                <button class="skill-chip" data-skill="التواصل">التواصل</button>
+                                <button class="skill-chip" data-skill="القيادة">القيادة</button>
+                                <button class="skill-chip" data-skill="إدارة الوقت">إدارة الوقت</button>
+                                <button class="skill-chip" data-skill="العمل الجماعي">العمل الجماعي</button>
+                                <button class="skill-chip" data-skill="حل المشكلات">حل المشكلات</button>
+                                <button class="skill-chip" data-skill="التفكير النقدي">التفكير النقدي</button>
+                            </div>
+                        </div>
+                        <div class="skill-category">
+                            <h4>أدوات وتقنيات</h4>
+                            <div class="skill-chips">
+                                <button class="skill-chip" data-skill="Git">Git</button>
+                                <button class="skill-chip" data-skill="Docker">Docker</button>
+                                <button class="skill-chip" data-skill="AWS">AWS</button>
+                                <button class="skill-chip" data-skill="Agile/Scrum">Agile/Scrum</button>
+                                <button class="skill-chip" data-skill="Linux">Linux</button>
+                                <button class="skill-chip" data-skill="Figma">Figma</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <label>أو أضف مهارة مخصصة:</label>
+                        <div class="custom-skill-input">
+                            <input type="text" id="customSkill" placeholder="اكتب مهارة واضغط Enter">
+                            <button class="btn btn-outline btn-sm" id="addCustomSkill">إضافة</button>
+                        </div>
+                    </div>
+
+                    <div class="selected-skills" id="selectedSkills">
+                        <span class="selected-label">المهارات المختارة:</span>
+                        <div class="selected-chips" id="selectedChips"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg btn-block" id="assessBtn">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    تحليل مهاراتي بالذكاء الاصطناعي
+                </button>
+            </div>
+
+            <!-- Results Section (hidden initially) -->
+            <div class="skills-results" id="skillsResults" style="display:none;">
+                <div class="dash-card result-score-card">
+                    <div class="score-circle" id="scoreCircle">
+                        <svg viewBox="0 0 120 120">
+                            <defs>
+                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#6C5CE7"/>
+                                    <stop offset="100%" stop-color="#00D2D3"/>
+                                </linearGradient>
+                            </defs>
+                            <circle cx="60" cy="60" r="54" class="score-bg"/>
+                            <circle cx="60" cy="60" r="54" class="score-fill" id="scoreFill"/>
+                        </svg>
+                        <span class="score-text" id="scoreText">0%</span>
+                    </div>
+                    <h3>درجة التوافق مع الوظيفة المستهدفة</h3>
+                </div>
+
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-file-lines"></i> التحليل العام</h3>
+                    <p id="analysisText" class="analysis-text"></p>
+                </div>
+
+                <div class="results-grid">
+                    <div class="dash-card">
+                        <h3 class="dash-card-title success-title"><i class="fas fa-check-circle"></i> نقاط القوة</h3>
+                        <ul class="strength-list" id="strengthsList"></ul>
+                    </div>
+                    <div class="dash-card">
+                        <h3 class="dash-card-title warning-title"><i class="fas fa-exclamation-triangle"></i> الفجوات المهارية</h3>
+                        <div id="gapsList" class="gaps-list"></div>
+                    </div>
+                </div>
+
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-map"></i> خارطة الطريق</h3>
+                    <div class="roadmap" id="roadmapList"></div>
+                </div>
+
+                <button class="btn btn-outline btn-lg" id="resetSkills" style="margin-top: 1rem;">
+                    <i class="fas fa-redo"></i> تقييم جديد
+                </button>
+            </div>
+        </div>
+    </main>
+    <script src="/AIScript.js"></script>
+</body>
+</html>

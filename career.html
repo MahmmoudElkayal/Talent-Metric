@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="المسار المهني - ASK_tech">
+    <title>ASK_tech | المسار المهني</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">ASK<span class="logo-accent">_tech</span></span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard">لوحة التحكم</a></li>
+                <li><a href="/skills">تقييم المهارات</a></li>
+                <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career" class="active">المسار المهني</a></li>
+                <li><button class="btn btn-outline btn-sm" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> خروج</button></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة"><span></span><span></span><span></span></button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="fas fa-route"></i> اكتشف مسارك المهني</h1>
+                <p>أدخل معلوماتك ودع الذكاء الاصطناعي يقترح لك المسارات المهنية الأنسب</p>
+            </div>
+
+            <!-- Input Section -->
+            <div id="careerInput">
+                <div class="career-input-grid">
+                    <div class="dash-card">
+                        <h3 class="dash-card-title"><i class="fas fa-star"></i> مهاراتك</h3>
+                        <div class="form-group">
+                            <textarea id="careerSkills" rows="3" placeholder="أدخل مهاراتك مفصولة بفواصل: Python, التواصل, إدارة المشاريع..." class="form-input-lg"></textarea>
+                        </div>
+                    </div>
+                    <div class="dash-card">
+                        <h3 class="dash-card-title"><i class="fas fa-heart"></i> اهتماماتك</h3>
+                        <div class="form-group">
+                            <textarea id="careerInterests" rows="3" placeholder="ما المجالات التي تستمتع بها؟ مثال: التكنولوجيا، التصميم، التعليم..." class="form-input-lg"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="dash-card">
+                    <h3 class="dash-card-title"><i class="fas fa-clock"></i> سنوات الخبرة</h3>
+                    <div class="form-group">
+                        <input type="number" id="careerExperience" min="0" max="40" value="0" class="form-input-lg" style="max-width: 200px;">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg btn-block" id="careerRecommendBtn">
+                    <i class="fas fa-wand-magic-sparkles"></i> اكتشف مساراتك المهنية
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="careerResults" style="display:none;">
+                <div class="dash-card" style="margin-bottom:2rem;">
+                    <h3 class="dash-card-title"><i class="fas fa-lightbulb"></i> نصيحة عامة</h3>
+                    <p id="careerAdvice" class="analysis-text"></p>
+                </div>
+
+                <div class="career-paths-grid" id="careerPathsGrid"></div>
+
+                <button class="btn btn-outline btn-lg" id="resetCareer" style="margin-top:1.5rem;">
+                    <i class="fas fa-redo"></i> استكشاف جديد
+                </button>
+            </div>
+        </div>
+    </main>
+    <script src="/AIScript.js"></script>
+</body>
+</html>

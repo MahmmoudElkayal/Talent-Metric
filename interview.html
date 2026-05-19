@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="المقابلات التجريبية - ASK_tech">
+    <title>ASK_tech | المقابلات التجريبية</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">ASK<span class="logo-accent">_tech</span></span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard">لوحة التحكم</a></li>
+                <li><a href="/skills">تقييم المهارات</a></li>
+                <li><a href="/interview" class="active">المقابلات</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career">المسار المهني</a></li>
+                <li><button class="btn btn-outline btn-sm" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> خروج</button></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة"><span></span><span></span><span></span></button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+            <!-- Setup Section -->
+            <div id="interviewSetup">
+                <div class="page-header">
+                    <h1><i class="fas fa-microphone"></i> المقابلات التجريبية</h1>
+                    <p>تدرب على مقابلات العمل مع محاور ذكي يقدم لك تقييماً فورياً</p>
+                </div>
+
+                <div class="interview-setup-grid">
+                    <div class="dash-card">
+                        <h3 class="dash-card-title"><i class="fas fa-briefcase"></i> الوظيفة المستهدفة</h3>
+                        <div class="form-group">
+                            <input type="text" id="interviewRole" placeholder="مثال: مطور واجهات أمامية" class="form-input-lg">
+                        </div>
+                    </div>
+                    <div class="dash-card">
+                        <h3 class="dash-card-title"><i class="fas fa-building"></i> المجال</h3>
+                        <div class="form-group">
+                            <select id="interviewField" class="form-input-lg">
+                                <option value="تكنولوجيا المعلومات">تكنولوجيا المعلومات</option>
+                                <option value="الهندسة">الهندسة</option>
+                                <option value="التسويق">التسويق</option>
+                                <option value="المالية">المالية والمحاسبة</option>
+                                <option value="الموارد البشرية">الموارد البشرية</option>
+                                <option value="التصميم">التصميم والإبداع</option>
+                                <option value="المبيعات">المبيعات</option>
+                                <option value="الإدارة">الإدارة</option>
+                                <option value="أخرى">أخرى</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg btn-block" id="startInterviewBtn">
+                    <i class="fas fa-play"></i> ابدأ المقابلة
+                </button>
+            </div>
+
+            <!-- Chat Section (hidden initially) -->
+            <div id="interviewChat" style="display: none;">
+                <div class="interview-header">
+                    <div class="interview-info">
+                        <h2><i class="fas fa-microphone"></i> المقابلة جارية</h2>
+                        <span class="interview-badge" id="questionCounter">السؤال 1</span>
+                    </div>
+                    <button class="btn btn-danger btn-sm" id="endInterviewBtn">
+                        <i class="fas fa-stop"></i> إنهاء المقابلة
+                    </button>
+                </div>
+
+                <div class="chat-container" id="chatContainer">
+                    <div class="chat-messages" id="chatMessages"></div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="chat-input-wrapper">
+                        <textarea id="chatInput" placeholder="اكتب إجابتك هنا..." rows="3"></textarea>
+                        <button class="btn btn-primary chat-send-btn" id="sendAnswerBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Modal -->
+            <div class="modal-overlay" id="interviewSummaryModal" style="display:none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-trophy"></i> ملخص المقابلة</h2>
+                        <button class="modal-close" id="closeSummaryModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="summary-score-display">
+                            <div class="score-circle score-circle-lg">
+                                <svg viewBox="0 0 120 120">
+                                    <defs>
+                                        <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="#6C5CE7"/>
+                                            <stop offset="100%" stop-color="#00D2D3"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <circle cx="60" cy="60" r="54" class="score-bg"/>
+                                    <circle cx="60" cy="60" r="54" class="score-fill" id="summaryScoreFill"/>
+                                </svg>
+                                <span class="score-text" id="summaryScoreText">0</span>
+                            </div>
+                            <span class="score-label">الدرجة الإجمالية من 10</span>
+                        </div>
+                        <div class="summary-text" id="summaryText"></div>
+                        <div class="summary-columns">
+                            <div>
+                                <h4 class="success-title"><i class="fas fa-check-circle"></i> نقاط القوة</h4>
+                                <ul id="summaryStrengths"></ul>
+                            </div>
+                            <div>
+                                <h4 class="warning-title"><i class="fas fa-arrow-up"></i> مجالات التحسين</h4>
+                                <ul id="summaryImprovements"></ul>
+                            </div>
+                        </div>
+                        <div>
+                            <h4><i class="fas fa-lightbulb"></i> نصائح</h4>
+                            <ul id="summaryTips"></ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="/interview" class="btn btn-primary">مقابلة جديدة</a>
+                        <a href="/dashboard" class="btn btn-outline">لوحة التحكم</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="/AIScript.js"></script>
+</body>
+</html>
