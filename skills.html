@@ -45,76 +45,52 @@
             <div class="skills-input-section" id="skillsInputSection">
                 <div class="dash-card">
                     <h3 class="dash-card-title"><i class="fas fa-bullseye"></i> الوظيفة المستهدفة</h3>
-                    <div class="form-group">
+                    <div class="profession-input-group">
                         <input type="text" id="targetRole" placeholder="مثال: مهندس برمجيات، محلل بيانات، مدير مشاريع" class="form-input-lg">
+                        <button class="btn btn-primary btn-lg" id="suggestSkillsBtn">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            توليد المهارات
+                        </button>
                     </div>
                 </div>
 
-                <div class="dash-card">
-                    <h3 class="dash-card-title"><i class="fas fa-tags"></i> اختر مهاراتك</h3>
-                    <div class="skill-categories">
-                        <div class="skill-category">
-                            <h4>البرمجة والتطوير</h4>
-                            <div class="skill-chips">
-                                <button class="skill-chip" data-skill="Python">Python</button>
-                                <button class="skill-chip" data-skill="JavaScript">JavaScript</button>
-                                <button class="skill-chip" data-skill="HTML/CSS">HTML/CSS</button>
-                                <button class="skill-chip" data-skill="React">React</button>
-                                <button class="skill-chip" data-skill="Node.js">Node.js</button>
-                                <button class="skill-chip" data-skill="SQL">SQL</button>
-                                <button class="skill-chip" data-skill="Java">Java</button>
-                                <button class="skill-chip" data-skill="C#">C#</button>
-                            </div>
-                        </div>
-                        <div class="skill-category">
-                            <h4>البيانات والذكاء الاصطناعي</h4>
-                            <div class="skill-chips">
-                                <button class="skill-chip" data-skill="تحليل البيانات">تحليل البيانات</button>
-                                <button class="skill-chip" data-skill="Machine Learning">Machine Learning</button>
-                                <button class="skill-chip" data-skill="Power BI">Power BI</button>
-                                <button class="skill-chip" data-skill="Excel المتقدم">Excel المتقدم</button>
-                                <button class="skill-chip" data-skill="Deep Learning">Deep Learning</button>
-                            </div>
-                        </div>
-                        <div class="skill-category">
-                            <h4>المهارات الشخصية</h4>
-                            <div class="skill-chips">
-                                <button class="skill-chip" data-skill="التواصل">التواصل</button>
-                                <button class="skill-chip" data-skill="القيادة">القيادة</button>
-                                <button class="skill-chip" data-skill="إدارة الوقت">إدارة الوقت</button>
-                                <button class="skill-chip" data-skill="العمل الجماعي">العمل الجماعي</button>
-                                <button class="skill-chip" data-skill="حل المشكلات">حل المشكلات</button>
-                                <button class="skill-chip" data-skill="التفكير النقدي">التفكير النقدي</button>
-                            </div>
-                        </div>
-                        <div class="skill-category">
-                            <h4>أدوات وتقنيات</h4>
-                            <div class="skill-chips">
-                                <button class="skill-chip" data-skill="Git">Git</button>
-                                <button class="skill-chip" data-skill="Docker">Docker</button>
-                                <button class="skill-chip" data-skill="AWS">AWS</button>
-                                <button class="skill-chip" data-skill="Agile/Scrum">Agile/Scrum</button>
-                                <button class="skill-chip" data-skill="Linux">Linux</button>
-                                <button class="skill-chip" data-skill="Figma">Figma</button>
-                            </div>
-                        </div>
+                <!-- Placeholder state when target role is empty -->
+                <div class="skills-placeholder" id="skillsPlaceholder">
+                    <div class="placeholder-content">
+                        <i class="fas fa-user-tie placeholder-icon"></i>
+                        <h3>ابدأ بإدخال وظيفتك المستهدفة</h3>
+                        <p>اكتب المسمى الوظيفي الذي تطمح إليه أعلاه، ثم اضغط على "توليد المهارات" لنقوم بتحليل المهارات الأساسية وتوفيرها لك لتقييم نفسك.</p>
+                    </div>
+                </div>
+
+                <!-- Dynamic Skills Assessment Container -->
+                <div class="dash-card skills-assessment-container" id="skillsContainer" style="display: none;">
+                    <h3 class="dash-card-title"><i class="fas fa-list-check"></i> قيّم مهاراتك (1-5)</h3>
+                    <p class="section-subtitle" style="margin-top: -0.5rem; margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                        حدّد مستواك في المهارات المقترحة أدناه: (1 = مبتدئ جداً، 5 = خبير محترف). يمكنك حذف أي مهارة لا تمتلكها، أو إضافة مهارات مخصصة.
+                    </p>
+                    
+                    <div class="skills-list" id="skillsList">
+                        <!-- Dynamically populated skill cards go here -->
                     </div>
 
-                    <div class="form-group" style="margin-top: 1.5rem;">
-                        <label>أو أضف مهارة مخصصة:</label>
+                    <div class="custom-skill-section" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                        <h4 style="font-size: 1.05rem; margin-bottom: 1rem; color: var(--primary-light);"><i class="fas fa-plus"></i> إضافة مهارة مخصصة</h4>
                         <div class="custom-skill-input">
-                            <input type="text" id="customSkill" placeholder="اكتب مهارة واضغط Enter">
-                            <button class="btn btn-outline btn-sm" id="addCustomSkill">إضافة</button>
+                            <input type="text" id="customSkill" placeholder="مثال: Python, التفاوض, Docker" style="flex: 2;">
+                            <select id="customSkillLevel" class="form-input" style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: var(--text); border-radius: var(--radius); padding: 0.5rem;">
+                                <option value="5">5 - خبير (Expert)</option>
+                                <option value="4">4 - متقدم (Advanced)</option>
+                                <option value="3" selected>3 - متوسط (Intermediate)</option>
+                                <option value="2">2 - مبتدئ (Beginner)</option>
+                                <option value="1">1 - أساسيات (Novice)</option>
+                            </select>
+                            <button class="btn btn-outline" id="addCustomSkill">إضافة المهارة</button>
                         </div>
-                    </div>
-
-                    <div class="selected-skills" id="selectedSkills">
-                        <span class="selected-label">المهارات المختارة:</span>
-                        <div class="selected-chips" id="selectedChips"></div>
                     </div>
                 </div>
 
-                <button class="btn btn-primary btn-lg btn-block" id="assessBtn">
+                <button class="btn btn-primary btn-lg btn-block" id="assessBtn" style="display: none; margin-top: 1.5rem;">
                     <i class="fas fa-wand-magic-sparkles"></i>
                     تحليل مهاراتي بالذكاء الاصطناعي
                 </button>

@@ -197,6 +197,7 @@ const TalentMetric = {
             'ابدأ بملء البيانات لرؤية المعاينة': 'Start filling in details to see live preview',
             
             // Career Advisory
+            'استيراد المهارات المقيمة': 'Import Assessed Skills',
             'مستشار المسار المهني': 'Career Path Advisor',
             'اكتشف الخيارات المهنية المتاحة وتلقّ نصائح عملية لتحقيق أهدافك الوظيفية.': 'Discover available career options and receive practical advice to achieve goals.',
             'أدخل مهاراتك الحالية': 'Enter your current skills',
@@ -472,62 +473,210 @@ const TalentMetric = {
 
     /* ═══════ SKILLS MODULE ═══════ */
     Skills: {
-        selectedSkills: [],
+        skillsState: [],
         init() {
             if (!TalentMetric.requireAuth()) return;
-            document.querySelectorAll('.skill-chip').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    chip.classList.toggle('selected');
-                    const skill = chip.dataset.skill;
-                    if (chip.classList.contains('selected')) {
-                        if (!this.selectedSkills.includes(skill)) this.selectedSkills.push(skill);
-                    } else {
-                        this.selectedSkills = this.selectedSkills.filter(s => s !== skill);
+            
+            // Load saved skills from assessment
+            const saved = localStorage.getItem('talentmetric_user_skills');
+            if (saved) {
+                try {
+                    this.skillsState = JSON.parse(saved);
+                    if (this.skillsState && this.skillsState.length > 0) {
+                        setTimeout(() => {
+                            const placeholder = document.getElementById('skillsPlaceholder');
+                            const container = document.getElementById('skillsContainer');
+                            const assessBtn = document.getElementById('assessBtn');
+                            if (placeholder) placeholder.style.display = 'none';
+                            if (container) container.style.display = 'block';
+                            if (assessBtn) assessBtn.style.display = 'block';
+                            this.renderSkillsList();
+                        }, 50);
                     }
-                    this.renderSelected();
+                } catch (e) { this.skillsState = []; }
+            }
+            
+            const suggestBtn = document.getElementById('suggestSkillsBtn');
+            const targetInput = document.getElementById('targetRole');
+            
+            if (suggestBtn) {
+                suggestBtn.addEventListener('click', () => this.fetchSuggestions());
+            }
+            if (targetInput) {
+                targetInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.fetchSuggestions();
+                    }
                 });
-            });
+            }
+
             const addBtn = document.getElementById('addCustomSkill');
             const customInput = document.getElementById('customSkill');
+            const customLevelSelect = document.getElementById('customSkillLevel');
+
             if (addBtn) {
                 const addCustom = () => {
-                    const val = customInput.value.trim();
-                    if (val && !this.selectedSkills.includes(val)) {
-                        this.selectedSkills.push(val);
-                        this.renderSelected();
+                    const name = customInput.value.trim();
+                    const level = parseInt(customLevelSelect.value) || 3;
+                    if (name) {
+                        const exists = this.skillsState.some(s => s.name.toLowerCase() === name.toLowerCase());
+                        if (exists) {
+                            TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Skill already added!' : 'تم إضافة المهارة بالفعل!', 'warning');
+                            return;
+                        }
+                        const isEn = TalentMetric.Lang.current === 'en';
+                        this.skillsState.push({
+                            name: name,
+                            category: isEn ? 'Custom Skill' : 'مهارة مخصصة',
+                            level: level
+                        });
+                        this.renderSkillsList();
                         customInput.value = '';
                     }
                 };
                 addBtn.addEventListener('click', addCustom);
-                customInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } });
+                customInput.addEventListener('keypress', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addCustom();
+                    }
+                });
             }
+
             const assessBtn = document.getElementById('assessBtn');
             if (assessBtn) assessBtn.addEventListener('click', () => this.assess());
             const resetBtn = document.getElementById('resetSkills');
             if (resetBtn) resetBtn.addEventListener('click', () => this.reset());
         },
-        renderSelected() {
-            const container = document.getElementById('selectedChips');
-            const wrapper = document.getElementById('selectedSkills');
-            if (!container) return;
-            container.innerHTML = this.selectedSkills.map(s => `<span class="selected-chip">${s} <span class="remove-chip" data-skill="${s}">&times;</span></span>`).join('');
-            wrapper.className = this.selectedSkills.length ? 'selected-skills has-skills' : 'selected-skills';
-            container.querySelectorAll('.remove-chip').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    this.selectedSkills = this.selectedSkills.filter(s => s !== btn.dataset.skill);
-                    document.querySelectorAll('.skill-chip').forEach(c => { if (c.dataset.skill === btn.dataset.skill) c.classList.remove('selected'); });
-                    this.renderSelected();
+        getLevelLabel(level) {
+            const isEn = TalentMetric.Lang.current === 'en';
+            const labels = {
+                1: isEn ? 'Novice' : 'أساسيات',
+                2: isEn ? 'Beginner' : 'مبتدئ',
+                3: isEn ? 'Intermediate' : 'متوسط',
+                4: isEn ? 'Advanced' : 'متقدم',
+                5: isEn ? 'Expert' : 'خبير'
+            };
+            return labels[level] || (isEn ? 'Intermediate' : 'متوسط');
+        },
+        async fetchSuggestions() {
+            const targetRole = document.getElementById('targetRole').value.trim();
+            if (!targetRole) {
+                TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please enter a target role first!' : 'يرجى إدخال الوظيفة المستهدفة أولاً!', 'warning');
+                return;
+            }
+            
+            TalentMetric.showLoading();
+            try {
+                const response = await TalentMetric.api('/api/skills/suggest', {
+                    method: 'POST',
+                    body: JSON.stringify({ target_role: targetRole, lang: TalentMetric.Lang.current })
+                });
+                
+                if (response && response.skills && response.skills.length > 0) {
+                    this.skillsState = response.skills.map(s => ({
+                        name: s.name,
+                        category: s.category || (TalentMetric.Lang.current === 'en' ? 'Core Skill' : 'مهارة أساسية'),
+                        level: 3
+                    }));
+                    
+                    document.getElementById('skillsPlaceholder').style.display = 'none';
+                    document.getElementById('skillsContainer').style.display = 'block';
+                    document.getElementById('assessBtn').style.display = 'block';
+                    
+                    this.renderSkillsList();
+                    TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Skills generated successfully!' : 'تم توليد المهارات بنجاح!', 'success');
+                } else {
+                    TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'No suggestions generated, feel free to add custom ones!' : 'لم نتمكن من اقتراح مهارات، يمكنك إضافتها يدوياً!', 'info');
+                    document.getElementById('skillsPlaceholder').style.display = 'none';
+                    document.getElementById('skillsContainer').style.display = 'block';
+                    document.getElementById('assessBtn').style.display = 'block';
+                    this.skillsState = [];
+                    this.renderSkillsList();
+                }
+            } catch (err) {
+                TalentMetric.toast(err.error || 'حدث خطأ أثناء اقتراح المهارات', 'error');
+            } finally {
+                TalentMetric.hideLoading();
+            }
+        },
+        renderSkillsList() {
+            const listContainer = document.getElementById('skillsList');
+            const assessBtn = document.getElementById('assessBtn');
+            if (!listContainer) return;
+            
+            // Save current skillsState to localStorage
+            localStorage.setItem('talentmetric_user_skills', JSON.stringify(this.skillsState));
+            
+            if (this.skillsState.length === 0) {
+                listContainer.innerHTML = `<div class="empty-skills-msg" style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <i class="fas fa-layer-group" style="font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+                    ${TalentMetric.Lang.current === 'en' ? 'No skills in list. Add custom ones below!' : 'لا توجد مهارات في القائمة. أضف مهارات مخصصة أدناه!'}
+                </div>`;
+                if (assessBtn) assessBtn.style.display = 'none';
+                return;
+            }
+
+            if (assessBtn) assessBtn.style.display = 'block';
+
+            listContainer.innerHTML = this.skillsState.map((skill, index) => {
+                const starsHtml = Array.from({ length: 5 }, (_, i) => {
+                    const starVal = i + 1;
+                    const isSolid = starVal <= skill.level;
+                    return `<i class="rating-star ${isSolid ? 'fas' : 'far'} fa-star" data-skill-idx="${index}" data-val="${starVal}"></i>`;
+                }).join('');
+
+                return `
+                    <div class="skill-assess-card" data-idx="${index}">
+                        <div class="skill-assess-header">
+                            <span class="skill-assess-name">${skill.name}</span>
+                            <span class="skill-assess-badge">${skill.category}</span>
+                        </div>
+                        <div class="skill-assess-body">
+                            <div class="skill-assess-rating">
+                                <div class="rating-stars">
+                                    ${starsHtml}
+                                </div>
+                                <span class="rating-label">${this.getLevelLabel(skill.level)}</span>
+                            </div>
+                        </div>
+                        <button class="skill-delete-btn" data-idx="${index}" title="${TalentMetric.Lang.current === 'en' ? 'Remove' : 'حذف'}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            listContainer.querySelectorAll('.rating-star').forEach(star => {
+                star.addEventListener('click', (e) => {
+                    const idx = parseInt(e.currentTarget.dataset.skillIdx);
+                    const val = parseInt(e.currentTarget.dataset.val);
+                    this.skillsState[idx].level = val;
+                    this.renderSkillsList();
+                });
+            });
+
+            listContainer.querySelectorAll('.skill-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(e.currentTarget.dataset.idx);
+                    this.skillsState.splice(idx, 1);
+                    this.renderSkillsList();
                 });
             });
         },
         async assess() {
-            if (this.selectedSkills.length === 0) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please select at least one skill' : 'يرجى اختيار مهارة واحدة على الأقل', 'error'); return; }
+            if (this.skillsState.length === 0) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please add at least one skill' : 'يرجى إضافة مهارة واحدة على الأقل', 'error'); return; }
             const targetRole = document.getElementById('targetRole').value.trim();
             TalentMetric.showLoading();
             try {
+                const payloadSkills = this.skillsState.map(s => ({
+                    name: s.name,
+                    level: s.level
+                }));
                 const result = await TalentMetric.api('/api/skills/assess', {
                     method: 'POST',
-                    body: JSON.stringify({ skills: this.selectedSkills, target_role: targetRole, lang: TalentMetric.Lang.current })
+                    body: JSON.stringify({ skills: payloadSkills, target_role: targetRole, lang: TalentMetric.Lang.current })
                 });
                 this.showResults(result);
             } catch (err) {
@@ -538,32 +687,36 @@ const TalentMetric = {
             document.getElementById('skillsInputSection').style.display = 'none';
             const results = document.getElementById('skillsResults');
             results.style.display = 'block';
-            // Score
+            
             const score = data.score || 0;
             document.getElementById('scoreText').textContent = score + '%';
             const fill = document.getElementById('scoreFill');
             if (fill) { const offset = 339.3 - (339.3 * score / 100); fill.style.strokeDashoffset = offset; }
-            // Analysis
+            
             document.getElementById('analysisText').textContent = data.analysis || '';
-            // Strengths
+            
             const sList = document.getElementById('strengthsList');
             sList.innerHTML = (data.strengths || []).map(s => `<li>${s}</li>`).join('');
-            // Gaps
+            
             const gList = document.getElementById('gapsList');
             gList.innerHTML = (data.gaps || []).map(g => {
                 const imp = g.importance === 'عالية' || g.importance === 'High' ? 'high' : g.importance === 'متوسطة' || g.importance === 'Medium' ? 'medium' : 'low';
                 return `<div class="gap-item"><h4>${g.skill}</h4><span class="gap-importance ${imp}">${g.importance}</span><p>${g.recommendation}</p></div>`;
             }).join('');
-            // Roadmap
+            
             const rList = document.getElementById('roadmapList');
             rList.innerHTML = (data.roadmap || []).map(r => `<div class="roadmap-item">${r}</div>`).join('');
         },
         reset() {
             document.getElementById('skillsInputSection').style.display = 'block';
             document.getElementById('skillsResults').style.display = 'none';
-            this.selectedSkills = [];
-            document.querySelectorAll('.skill-chip').forEach(c => c.classList.remove('selected'));
-            this.renderSelected();
+            document.getElementById('skillsPlaceholder').style.display = 'block';
+            document.getElementById('skillsContainer').style.display = 'none';
+            document.getElementById('assessBtn').style.display = 'none';
+            this.skillsState = [];
+            localStorage.removeItem('talentmetric_user_skills');
+            document.getElementById('targetRole').value = '';
+            this.renderSkillsList();
         }
     },
 
@@ -1164,6 +1317,42 @@ const TalentMetric = {
                 document.getElementById('careerInput').style.display = 'block';
                 document.getElementById('careerResults').style.display = 'none';
             });
+            
+            const loadBtn = document.getElementById('loadAssessedSkillsBtn');
+            if (loadBtn) {
+                loadBtn.addEventListener('click', () => {
+                    const saved = localStorage.getItem('talentmetric_user_skills');
+                    if (saved) {
+                        try {
+                            const skills = JSON.parse(saved);
+                            if (skills && skills.length > 0) {
+                                const names = skills.map(s => s.name).join(', ');
+                                const textarea = document.getElementById('careerSkills');
+                                if (textarea) {
+                                    textarea.value = names;
+                                    textarea.classList.add('flash-glow');
+                                    setTimeout(() => textarea.classList.remove('flash-glow'), 1000);
+                                    TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Skills imported successfully!' : 'تم استيراد المهارات بنجاح!', 'success');
+                                }
+                            } else {
+                                this.showNoSkillsToast();
+                            }
+                        } catch (e) {
+                            this.showNoSkillsToast();
+                        }
+                    } else {
+                        this.showNoSkillsToast();
+                    }
+                });
+            }
+        },
+        showNoSkillsToast() {
+            TalentMetric.toast(
+                TalentMetric.Lang.current === 'en' 
+                    ? 'No assessed skills found. Please assess your skills first in the "Skills Assessment" page.' 
+                    : 'لم يتم العثور على مهارات مقيمة. يرجى تقييم مهاراتك أولاً في صفحة "تقييم المهارات".', 
+                'warning'
+            );
         },
         async recommend() {
             const skills = document.getElementById('careerSkills').value.trim().split(/[,،]+/).map(s => s.trim()).filter(Boolean);
