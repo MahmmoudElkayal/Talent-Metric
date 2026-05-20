@@ -2253,19 +2253,33 @@ def api_interview_end(user):
 
     overall_score = round(sum(scores) / len(scores), 1) if scores else 0.0
     lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
+    feature = "video_interview" if mode == "video" else "chat_interview"
 
-    summary_prompt = (
-        f"قدّم ملخصاً نهائياً لأداء المرشح. {lang_instruction}\n"
-        "أرجع JSON فقط:\n"
-        '{"summary":"<ملخص>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
-    ) if lang == "ar" else (
-        f"Provide a final performance summary for the candidate. {lang_instruction}\n"
-        "Return JSON only:\n"
-        '{"summary":"<summary>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
-    )
+    if mode == "video":
+        summary_prompt = (
+            f"قدّم ملخصاً نهائياً لأداء المرشح في المقابلة المرئية. {lang_instruction}\n"
+            "قم بتقييم ثقته وحضوره أمام الكاميرا، لغة جسده، وتواصله البصري وتعبيرات وجهه بناءً على لقطات الفيديو والردود.\n"
+            "أرجع JSON فقط:\n"
+            '{"summary":"<ملخص شامل لأداء المرشح اللفظي ومستوى ثقته وحضوره المرئي أمام الكاميرا>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
+        ) if lang == "ar" else (
+            f"Provide a final performance summary for the candidate's video interview. {lang_instruction}\n"
+            "Evaluate their presentation confidence, camera presence, body language, eye contact, and facial expressions based on the video frames and answers.\n"
+            "Return JSON only:\n"
+            '{"summary":"<comprehensive summary covering verbal answers, visual confidence, and camera presence>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
+        )
+    else:
+        summary_prompt = (
+            f"قدّم ملخصاً نهائياً لأداء المرشح في المقابلة. {lang_instruction}\n"
+            "أرجع JSON فقط:\n"
+            '{"summary":"<ملخص>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
+        ) if lang == "ar" else (
+            f"Provide a final performance summary for the candidate. {lang_instruction}\n"
+            "Return JSON only:\n"
+            '{"summary":"<summary>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
+        )
 
     summary_messages = messages + [{"role": "user", "content": summary_prompt}]
-    ai_response = get_ai_client().chat(summary_messages, feature="chat_interview", max_tokens=800)
+    ai_response = get_ai_client().chat(summary_messages, feature=feature, max_tokens=800)
     result = extract_json(ai_response) or {
         "summary": "أداء جيد في المقابلة." if lang == "ar" else "Good interview performance.",
         "strengths": [], "improvements": [], "tips": []

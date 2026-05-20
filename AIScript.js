@@ -725,6 +725,7 @@ const TalentMetric = {
         sessionId: null, questionCount: 0, mode: 'chat',
         stream: null, recognition: null, synth: window.speechSynthesis, ttsEnabled: true,
         timerInt: null, seconds: 0, accumulatedStreamText: '',
+        silenceTimer: null, silenceDelay: 2500, isListening: false,
         
         init() {
             if (!TalentMetric.requireAuth()) return;
@@ -756,11 +757,11 @@ const TalentMetric = {
             });
             document.getElementById('chatMicBtn')?.addEventListener('click', () => this.toggleSTT('chatInput', 'chatMicBtn'));
 
-            // Video Mode
+            // Video Mode — sttMicBtn is now a "Send Now" override button
             document.getElementById('videoSendBtn')?.addEventListener('click', () => this.sendAnswer('video'));
             document.getElementById('endVideoInterviewBtn')?.addEventListener('click', () => this.end());
             document.getElementById('endVideoCallBtn')?.addEventListener('click', () => this.end());
-            document.getElementById('videoTranscriptInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendAnswer('video'); } });
+            document.getElementById('videoTranscriptInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.stopListeningAndSend(); } });
             
             document.getElementById('toggleMicBtn')?.addEventListener('click', (e) => {
                 if(!this.stream) return;
@@ -787,60 +788,172 @@ const TalentMetric = {
                 e.currentTarget.querySelector('i').className = this.ttsEnabled ? 'fas fa-volume-high' : 'fas fa-volume-xmark';
                 if(!this.ttsEnabled) this.synth.cancel();
             });
-            document.getElementById('sttMicBtn')?.addEventListener('click', () => this.toggleSTT('videoTranscriptInput', 'sttMicBtn', 'sttWave'));
+            // sttMicBtn = manual "send answer now" button (early submit override)
+            document.getElementById('sttMicBtn')?.addEventListener('click', () => {
+                const input = document.getElementById('videoTranscriptInput');
+                if (this.isListening) {
+                    // If listening and has text → send immediately
+                    this.stopListeningAndSend();
+                } else if (input && input.value.trim()) {
+                    // If not listening but has typed text → send it
+                    this.sendAnswer('video');
+                } else {
+                    // Manually kick off listening
+                    this.startListeningForAnswer();
+                }
+            });
 
             document.getElementById('closeSummaryModal')?.addEventListener('click', () => { document.getElementById('interviewSummaryModal').style.display = 'none'; });
 
             this.initSpeech();
         },
+
         initSpeech() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(SpeechRecognition) {
+            if (SpeechRecognition) {
                 this.recognition = new SpeechRecognition();
-                this.recognition.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
-                this.recognition.continuous = false;
+                this.recognition.continuous = true;
                 this.recognition.interimResults = true;
             }
         },
-        toggleSTT(inputId, btnId, waveId = null) {
-            if(!this.recognition) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Your browser does not support Speech Recognition.' : 'متصفحك لا يدعم إدخال الصوت', 'error'); return; }
-            const btn = document.getElementById(btnId);
+
+        /* ─── Hands-free responsive listening ─── */
+        startListeningForAnswer() {
+            if (!this.recognition || !this.sessionId || this.isListening) return;
+
+            this.isListening = true;
+            const input     = document.getElementById('videoTranscriptInput');
+            const sttBtn    = document.getElementById('sttMicBtn');
+            const sttWave   = document.getElementById('sttWave');
+            const statusTxt = document.getElementById('sttStatusText');
+            const isEn      = TalentMetric.Lang.current === 'en';
+
+            if (input)     input.value = '';
+            if (sttBtn)    { sttBtn.classList.add('listening'); sttBtn.querySelector('i').className = 'fas fa-paper-plane'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
+            if (sttWave)   sttWave.classList.add('listening');
+            if (statusTxt) statusTxt.textContent = isEn ? 'Listening... speak your answer' : 'جاري الاستماع... تحدث الآن';
+
+            this.recognition.lang = isEn ? 'en-US' : 'ar-SA';
+
+            this.recognition.onstart = () => {
+                if (statusTxt) statusTxt.textContent = isEn ? 'Listening... speak your answer' : 'جاري الاستماع... تحدث الآن';
+            };
+
+            this.recognition.onresult = (e) => {
+                let finalText = '', interimText = '';
+                for (let i = 0; i < e.results.length; i++) {
+                    if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
+                    else interimText += e.results[i][0].transcript;
+                }
+                const transcribed = (finalText || interimText).trim();
+                if (input) input.value = transcribed;
+
+                // Restart silence timer on each speech chunk
+                if (this.silenceTimer) clearTimeout(this.silenceTimer);
+                if (transcribed) {
+                    this.silenceTimer = setTimeout(() => this.stopListeningAndSend(), this.silenceDelay);
+                }
+            };
+
+            this.recognition.onerror = (e) => {
+                this.isListening = false;
+                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
+                if (sttWave) sttWave.classList.remove('listening');
+                let msg = isEn ? 'Mic error, click to retry' : 'خطأ في الميكروفون، انقر للمحاولة';
+                if (e.error === 'not-allowed') msg = isEn ? 'Microphone blocked — grant permission' : 'تم حظر الميكروفون — اسمح بالوصول';
+                if (e.error === 'no-speech')   msg = isEn ? 'No speech detected' : 'لم يُكشف صوت';
+                if (statusTxt) statusTxt.textContent = msg;
+            };
+
+            this.recognition.onend = () => {
+                this.isListening = false;
+                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
+                if (sttWave) sttWave.classList.remove('listening');
+            };
+
+            try { this.recognition.start(); } catch(err) { this.isListening = false; }
+        },
+
+        stopListeningAndSend() {
+            if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
+            this.isListening = false;
+            if (this.recognition) { try { this.recognition.stop(); } catch(e) {} }
+            const sttBtn = document.getElementById('sttMicBtn');
+            const sttWave = document.getElementById('sttWave');
+            if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; }
+            if (sttWave) sttWave.classList.remove('listening');
+
+            const input = document.getElementById('videoTranscriptInput');
+            if (input && input.value.trim()) {
+                setTimeout(() => this.sendAnswer('video'), 100);
+            }
+        },
+
+        /* ─── Chat-mode manual STT toggle (unchanged) ─── */
+        toggleSTT(inputId, btnId) {
+            if (!this.recognition) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Browser does not support Speech Recognition.' : 'المتصفح لا يدعم التعرف على الصوت', 'error'); return; }
+            const btn   = document.getElementById(btnId);
             const input = document.getElementById(inputId);
-            const wave = waveId ? document.getElementById(waveId) : null;
-            
-            if(btn.classList.contains('listening')) {
+            const isEn  = TalentMetric.Lang.current === 'en';
+
+            if (btn.classList.contains('listening')) {
                 this.recognition.stop();
                 btn.classList.remove('listening');
-                if(wave) wave.classList.remove('listening');
             } else {
                 btn.classList.add('listening');
-                if(wave) wave.classList.add('listening');
-                
-                this.recognition.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
-                
+                this.recognition.lang = isEn ? 'en-US' : 'ar-SA';
                 this.recognition.onresult = (e) => {
                     let text = '';
                     for (let i = 0; i < e.results.length; ++i) text += e.results[i][0].transcript;
                     input.value = text;
                 };
-                this.recognition.onend = () => {
-                    btn.classList.remove('listening');
-                    if(wave) wave.classList.remove('listening');
-                };
+                this.recognition.onerror = () => btn.classList.remove('listening');
+                this.recognition.onend   = () => btn.classList.remove('listening');
                 this.recognition.start();
             }
         },
+
         speak(text) {
-            if(!this.ttsEnabled || !this.synth) return;
+            if (!this.ttsEnabled || !this.synth) {
+                // If TTS disabled in video mode, go straight to listening
+                if (this.mode === 'video') setTimeout(() => this.startListeningForAnswer(), 400);
+                return;
+            }
             this.synth.cancel();
+
+            // Stop mic while AI is speaking (prevent feedback)
+            if (this.isListening) {
+                this.isListening = false;
+                try { this.recognition.stop(); } catch(e) {}
+            }
+            if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
+
+            const sttBtn    = document.getElementById('sttMicBtn');
+            const sttWave   = document.getElementById('sttWave');
+            const statusTxt = document.getElementById('sttStatusText');
+            const isEn      = TalentMetric.Lang.current === 'en';
+            if (sttBtn)    { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; }
+            if (sttWave)   sttWave.classList.remove('listening');
+            if (statusTxt) statusTxt.textContent = isEn ? 'AI is speaking...' : 'المحاور يتحدث...';
+
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
-            
+            utterance.lang  = isEn ? 'en-US' : 'ar-SA';
+
             const avatar = document.getElementById('aiSpeakingIndicator');
-            utterance.onstart = () => { if(avatar) avatar.classList.add('active'); };
-            utterance.onend = () => { if(avatar) avatar.classList.remove('active'); };
-            utterance.onerror = () => { if(avatar) avatar.classList.remove('active'); };
-            
+            utterance.onstart = () => { if (avatar) avatar.classList.add('active'); };
+            utterance.onend   = () => {
+                if (avatar) avatar.classList.remove('active');
+                // Auto-start listening after AI finishes — hands-free flow
+                if (this.mode === 'video' && this.sessionId) {
+                    if (statusTxt) statusTxt.textContent = isEn ? 'Your turn — speak your answer' : 'دورك — تحدث الآن';
+                    setTimeout(() => this.startListeningForAnswer(), 500);
+                }
+            };
+            utterance.onerror = () => {
+                if (avatar) avatar.classList.remove('active');
+                if (this.mode === 'video' && this.sessionId) setTimeout(() => this.startListeningForAnswer(), 500);
+            };
+
             this.synth.speak(utterance);
         },
         async setupPreview() {
@@ -963,7 +1076,18 @@ const TalentMetric = {
             const answer = input.value.trim();
             if (!answer || !this.sessionId) return;
             
-            if(this.synth) this.synth.cancel(); // Stop speaking previous question
+            if(this.synth) this.synth.cancel(); // Stop AI speaking when user sends answer
+            
+            // Clear silence detection and stop mic before sending
+            if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
+            this.isListening = false;
+            if (this.recognition) { try { this.recognition.stop(); } catch(e) {} }
+            const sttBtn  = document.getElementById('sttMicBtn');
+            const sttWave = document.getElementById('sttWave');
+            const statusTxt = document.getElementById('sttStatusText');
+            if (sttBtn)    { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; }
+            if (sttWave)   sttWave.classList.remove('listening');
+            if (statusTxt && modeStr === 'video') statusTxt.textContent = TalentMetric.Lang.current === 'en' ? 'Processing...' : 'جاري المعالجة...';
             
             input.value = '';
             this.addMessage(answer, 'user');
@@ -1148,7 +1272,10 @@ const TalentMetric = {
             if (!this.sessionId) return;
             if(this.timerInt) clearInterval(this.timerInt);
             if(this.synth) this.synth.cancel();
-            if(this.recognition) this.recognition.stop();
+            // Stop hands-free listening and clear any pending silence timers
+            if(this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
+            this.isListening = false;
+            if(this.recognition) { try { this.recognition.stop(); } catch(e) {} }
             if(this.stream) {
                 this.stream.getTracks().forEach(t => t.stop());
                 this.stream = null;

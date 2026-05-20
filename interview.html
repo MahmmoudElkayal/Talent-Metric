@@ -192,6 +192,7 @@
                     <div class="video-transcript-panel">
                         <div class="transcript-header">
                             <span><i class="fas fa-align-left"></i> نص المقابلة</span>
+                            <span class="transcript-hint" style="font-size:0.75rem;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:0.3rem;"><i class="fas fa-microphone-lines"></i> يعمل تلقائياً</span>
                         </div>
                         <div class="transcript-messages" id="videoMessages"></div>
                         <div class="stt-area">
@@ -199,14 +200,14 @@
                                 <div class="stt-wave" id="sttWave">
                                     <span></span><span></span><span></span><span></span><span></span>
                                 </div>
-                                <span id="sttStatusText">اضغط الميكروفون للإجابة</span>
+                                <span id="sttStatusText">انتظر سؤال المحاور...</span>
                             </div>
                             <div class="stt-text-wrap">
-                                <textarea id="videoTranscriptInput" placeholder="يمكنك الكتابة أو التحدث بصوتك..." rows="2"></textarea>
-                                <button class="stt-mic-btn" id="sttMicBtn">
+                                <textarea id="videoTranscriptInput" placeholder="سيتم التعرف على صوتك تلقائياً — أو اكتب هنا..." rows="2"></textarea>
+                                <button class="stt-mic-btn" id="sttMicBtn" title="إرسال الآن">
                                     <i class="fas fa-microphone"></i>
                                 </button>
-                                <button class="btn btn-primary stt-send-btn" id="videoSendBtn">
+                                <button class="btn btn-primary stt-send-btn" id="videoSendBtn" title="إرسال">
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
                             </div>

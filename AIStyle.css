@@ -581,13 +581,15 @@ a:hover{color:var(--secondary)}
 .stt-wave span:nth-child(4){height:16px;animation-delay:.3s}
 .stt-wave span:nth-child(5){height:6px;animation-delay:.4s}
 @keyframes stt-bar{from{transform:scaleY(.3)}to{transform:scaleY(1)}}
+#sttStatusText{font-size:.82rem;color:rgba(255,255,255,.5);transition:color .3s ease}
 .stt-text-wrap{display:flex;gap:.5rem;align-items:flex-end}
 .stt-text-wrap textarea{flex:1;padding:.6rem .9rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);color:var(--text);font-family:inherit;font-size:.9rem;resize:none;outline:none;transition:var(--transition)}
 .stt-text-wrap textarea:focus{border-color:var(--primary)}
-.stt-mic-btn{width:42px;height:42px;border-radius:50%;border:none;background:rgba(59,130,246,.15);color:var(--primary-light);font-size:1rem;cursor:pointer;transition:var(--transition);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.stt-mic-btn:hover{background:var(--primary);color:#fff}
-.stt-mic-btn.listening{background:var(--danger);color:#fff;animation:mic-pulse 1s infinite}
-@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+.stt-text-wrap textarea:not(:placeholder-shown){border-color:rgba(59,130,246,.35)}
+.stt-mic-btn{width:42px;height:42px;border-radius:50%;border:none;background:rgba(59,130,246,.15);color:var(--primary-light);font-size:1rem;cursor:pointer;transition:all .25s ease;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stt-mic-btn:hover{background:var(--primary);color:#fff;transform:scale(1.08)}
+.stt-mic-btn.listening{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;animation:mic-pulse 1s infinite;box-shadow:0 0 16px rgba(239,68,68,.4)}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5),0 0 16px rgba(239,68,68,.3)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0),0 0 24px rgba(239,68,68,.15)}}
 .stt-send-btn{height:42px;padding:0 1rem;flex-shrink:0}
 
 /* ── CHAT MIC BUTTON ── */
