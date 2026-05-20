@@ -61,9 +61,48 @@
 
         /* ── Model chip areas ── */
         .model-chips-label { font-size: .7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin: .6rem 0 .35rem; }
-        .model-chips-area { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
-        .model-chips-wrap { margin-top: .7rem; display: none; flex-wrap: wrap; gap: .4rem; }
+        .model-chips-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem;
+            margin-bottom: .5rem;
+            max-height: 180px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: .6rem;
+            box-sizing: border-box;
+        }
+        .model-chips-wrap {
+            margin-top: .7rem;
+            display: none;
+            flex-wrap: wrap;
+            gap: .4rem;
+            max-height: 250px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: .6rem;
+            box-sizing: border-box;
+            width: 100%;
+        }
         .model-chips-wrap.visible { display: flex; }
+        .model-chips-area::-webkit-scrollbar, .model-chips-wrap::-webkit-scrollbar {
+            width: 6px;
+        }
+        .model-chips-area::-webkit-scrollbar-track, .model-chips-wrap::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+        .model-chips-area::-webkit-scrollbar-thumb, .model-chips-wrap::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+        }
+        .model-chips-area::-webkit-scrollbar-thumb:hover, .model-chips-wrap::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
         .model-chip { padding: .25rem .65rem; background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.22); border-radius: 50px; color: #93c5fd; font-size: .72rem; font-weight: 600; cursor: pointer; transition: all .2s; white-space: nowrap; }
         .model-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 
@@ -245,10 +284,27 @@
                             </div>
                             <div class="model-chips-label"><i class="fas fa-robot" style="color:var(--primary-light)"></i> Quick-select model &nbsp;<span style="font-size:.65rem;opacity:.6;font-weight:400">👁 = vision/multimodal (required for Video Interview)</span></div>
                             <div class="vision-note"><i class="fas fa-video"></i> For <strong>Video Interview</strong>, you must select a 👁 vision model — it needs to see the camera feed.</div>
+                            
+                            <!-- Dropdown Filter for OpenRouter -->
+                            <div class="filter-row" style="margin-bottom: .65rem; display: flex; gap: .5rem; align-items: center; background: rgba(0,0,0,0.15); padding: .45rem .6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                                <span style="font-size: .7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em;"><i class="fas fa-filter" style="color: var(--primary-light)"></i> Filter Provider:</span>
+                                <select class="admin-provider-filter" id="openrouterProviderFilter" style="flex: 1; padding: .3rem .5rem; font-size: .76rem; background: rgba(15,15,25,.85) !important; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: #e2e8f0 !important; outline: none; cursor: pointer; height: auto;">
+                                    <option value="all">⚡ All Providers</option>
+                                    <option value="openai">OpenAI</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="google">Google</option>
+                                    <option value="meta-llama">Meta Llama</option>
+                                    <option value="mistral">Mistral</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="qwen">Qwen (Alibaba)</option>
+                                    <option value="x-ai">xAI / Other</option>
+                                </select>
+                            </div>
+
                             <div class="model-chips-area">
 
                                 <!-- OpenAI via OpenRouter -->
-                                <span class="chip-group-label">— OpenAI —</span>
+                                <span class="chip-group-label" data-group="openai">— OpenAI —</span>
                                 <button class="model-chip vision-chip" data-model="openai/gpt-4o" data-provider="openrouter">👁 GPT-4o</button>
                                 <button class="model-chip vision-chip" data-model="openai/gpt-4o-mini" data-provider="openrouter">👁 GPT-4o-mini</button>
                                 <button class="model-chip" data-model="openai/o3-mini" data-provider="openrouter">o3-mini</button>
@@ -257,14 +313,14 @@
                                 <button class="model-chip" data-model="openai/gpt-3.5-turbo" data-provider="openrouter">GPT-3.5 Turbo</button>
 
                                 <!-- Anthropic Claude -->
-                                <span class="chip-group-label">— Anthropic —</span>
+                                <span class="chip-group-label" data-group="anthropic">— Anthropic —</span>
                                 <button class="model-chip vision-chip" data-model="anthropic/claude-opus-4" data-provider="openrouter">👁 Claude Opus 4</button>
                                 <button class="model-chip vision-chip" data-model="anthropic/claude-sonnet-4-5" data-provider="openrouter">👁 Claude Sonnet 4.5</button>
                                 <button class="model-chip vision-chip" data-model="anthropic/claude-3-5-haiku" data-provider="openrouter">👁 Claude 3.5 Haiku</button>
                                 <button class="model-chip vision-chip" data-model="anthropic/claude-3-5-sonnet" data-provider="openrouter">👁 Claude 3.5 Sonnet</button>
 
                                 <!-- Google -->
-                                <span class="chip-group-label">— Google —</span>
+                                <span class="chip-group-label" data-group="google">— Google —</span>
                                 <button class="model-chip vision-chip" data-model="google/gemini-2.5-pro" data-provider="openrouter">👁 Gemini 2.5 Pro</button>
                                 <button class="model-chip vision-chip" data-model="google/gemini-2.5-flash" data-provider="openrouter">👁 Gemini 2.5 Flash</button>
                                 <button class="model-chip vision-chip" data-model="google/gemini-2.0-flash" data-provider="openrouter">👁 Gemini 2.0 Flash</button>
@@ -272,7 +328,7 @@
                                 <button class="model-chip vision-chip" data-model="google/gemma-3-27b-it" data-provider="openrouter">👁 Gemma 3 27B</button>
 
                                 <!-- Meta Llama -->
-                                <span class="chip-group-label">— Meta Llama —</span>
+                                <span class="chip-group-label" data-group="meta-llama">— Meta Llama —</span>
                                 <button class="model-chip" data-model="meta-llama/llama-3.3-70b-instruct" data-provider="openrouter">Llama 3.3 70B</button>
                                 <button class="model-chip" data-model="meta-llama/llama-3.1-70b-instruct" data-provider="openrouter">Llama 3.1 70B</button>
                                 <button class="model-chip" data-model="meta-llama/llama-3.1-8b-instruct:free" data-provider="openrouter">Llama 3.1 8B (free)</button>
@@ -282,7 +338,7 @@
                                 <button class="model-chip" data-model="meta-llama/llama-4-maverick" data-provider="openrouter">Llama 4 Maverick</button>
 
                                 <!-- Mistral -->
-                                <span class="chip-group-label">— Mistral —</span>
+                                <span class="chip-group-label" data-group="mistral">— Mistral —</span>
                                 <button class="model-chip" data-model="mistralai/mistral-large" data-provider="openrouter">Mistral Large</button>
                                 <button class="model-chip" data-model="mistralai/mistral-small" data-provider="openrouter">Mistral Small</button>
                                 <button class="model-chip" data-model="mistralai/mistral-nemo" data-provider="openrouter">Mistral Nemo (free)</button>
@@ -290,14 +346,14 @@
                                 <button class="model-chip" data-model="mistralai/codestral-2501" data-provider="openrouter">Codestral</button>
 
                                 <!-- DeepSeek -->
-                                <span class="chip-group-label">— DeepSeek —</span>
+                                <span class="chip-group-label" data-group="deepseek">— DeepSeek —</span>
                                 <button class="model-chip" data-model="deepseek/deepseek-r1" data-provider="openrouter">DeepSeek R1</button>
                                 <button class="model-chip" data-model="deepseek/deepseek-r1-distill-llama-70b" data-provider="openrouter">DeepSeek R1 Distill 70B</button>
                                 <button class="model-chip" data-model="deepseek/deepseek-chat" data-provider="openrouter">DeepSeek V3</button>
                                 <button class="model-chip" data-model="deepseek/deepseek-r1:free" data-provider="openrouter">DeepSeek R1 (free)</button>
 
                                 <!-- Qwen -->
-                                <span class="chip-group-label">— Qwen (Alibaba) —</span>
+                                <span class="chip-group-label" data-group="qwen">— Qwen (Alibaba) —</span>
                                 <button class="model-chip" data-model="qwen/qwen-2.5-72b-instruct" data-provider="openrouter">Qwen 2.5 72B</button>
                                 <button class="model-chip" data-model="qwen/qwen-2.5-7b-instruct" data-provider="openrouter">Qwen 2.5 7B</button>
                                 <button class="model-chip vision-chip" data-model="qwen/qwen2.5-vl-72b-instruct" data-provider="openrouter">👁 Qwen 2.5 VL 72B</button>
@@ -305,7 +361,7 @@
                                 <button class="model-chip" data-model="qwen/qwq-32b" data-provider="openrouter">QwQ 32B</button>
 
                                 <!-- Other / Free -->
-                                <span class="chip-group-label">— xAI / Other —</span>
+                                <span class="chip-group-label" data-group="x-ai">— xAI / Other —</span>
                                 <button class="model-chip vision-chip" data-model="x-ai/grok-2-vision-1212" data-provider="openrouter">👁 Grok 2 Vision</button>
                                 <button class="model-chip" data-model="x-ai/grok-2" data-provider="openrouter">Grok 2</button>
                                 <button class="model-chip" data-model="microsoft/phi-4" data-provider="openrouter">Phi-4</button>

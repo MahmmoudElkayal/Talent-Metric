@@ -1502,6 +1502,64 @@ const TalentMetric = {
                 }
             });
 
+            // OpenRouter Provider Dropdown Filter
+            const orFilter = document.getElementById('openrouterProviderFilter');
+            if (orFilter) {
+                orFilter.addEventListener('change', () => {
+                    const filterVal = orFilter.value;
+                    const card = orFilter.closest('.provider-card');
+                    if (!card) return;
+
+                    // 1. Filter static quick-select chips
+                    const staticArea = card.querySelector('.model-chips-area');
+                    if (staticArea) {
+                        const labels = staticArea.querySelectorAll('.chip-group-label');
+                        const chips = staticArea.querySelectorAll('.model-chip');
+
+                        labels.forEach(lbl => {
+                            const group = lbl.dataset.group;
+                            if (filterVal === 'all' || group === filterVal) {
+                                lbl.style.display = 'block';
+                            } else {
+                                lbl.style.display = 'none';
+                            }
+                        });
+
+                        chips.forEach(chip => {
+                            const model = chip.dataset.model || '';
+                            const matches = filterVal === 'all' ||
+                                            model.startsWith(filterVal + '/') ||
+                                            (filterVal === 'meta-llama' && model.startsWith('meta-llama/')) ||
+                                            (filterVal === 'mistral' && model.startsWith('mistralai/')) ||
+                                            (filterVal === 'x-ai' && (model.startsWith('x-ai/') || model.startsWith('microsoft/') || model.startsWith('cohere/')));
+
+                            if (matches) {
+                                chip.style.display = 'inline-block';
+                            } else {
+                                chip.style.display = 'none';
+                            }
+                        });
+                    }
+
+                    // 2. Filter dynamic fetched chips
+                    const dynamicChips = card.querySelectorAll('#openrouterModelsChips .model-chip');
+                    dynamicChips.forEach(chip => {
+                        const model = chip.dataset.model || '';
+                        const matches = filterVal === 'all' ||
+                                        model.startsWith(filterVal + '/') ||
+                                        (filterVal === 'meta-llama' && model.startsWith('meta-llama/')) ||
+                                        (filterVal === 'mistral' && model.startsWith('mistralai/')) ||
+                                        (filterVal === 'x-ai' && (model.startsWith('x-ai/') || model.startsWith('microsoft/') || model.startsWith('cohere/')));
+
+                        if (matches) {
+                            chip.style.display = 'inline-block';
+                        } else {
+                            chip.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
             this.showPanel();
             this.loadSettings();
         },
@@ -1542,20 +1600,22 @@ const TalentMetric = {
                 if (resp.status === 401) { sessionStorage.removeItem('talentmetric_admin_token'); window.location.href = '/login'; return; }
                 const data = await resp.json();
                 const list = data.models || [];
-                const chips = document.getElementById('openrouterModelsChips');
-                const container = document.getElementById('openrouterModelsList');
-                if (chips && container) {
-                    if (list.length === 0) {
-                        chips.innerHTML = '<span style="color:var(--text-muted);font-size:.8rem">No models found or error. Check key.</span>';
-                    } else {
-                        chips.innerHTML = list.map(m => {
-                            const icon = m.vision ? '👁 ' : '';
-                            const vClass = m.vision ? ' vision-chip' : '';
-                            return `<button class="model-chip${vClass}" data-model="${m.id}" data-provider="openrouter" title="Context: ${m.context || 'unknown'}">${icon}${m.name || m.id}</button>`;
-                        }).join('');
-                    }
-                    container.classList.add('visible');
-                }
+                 const chips = document.getElementById('openrouterModelsChips');
+                 const container = document.getElementById('openrouterModelsList');
+                 if (chips && container) {
+                     if (list.length === 0) {
+                         chips.innerHTML = '<span style="color:var(--text-muted);font-size:.8rem">No models found or error. Check key.</span>';
+                     } else {
+                         chips.innerHTML = list.map(m => {
+                             const icon = m.vision ? '👁 ' : '';
+                             const vClass = m.vision ? ' vision-chip' : '';
+                             return `<button class="model-chip${vClass}" data-model="${m.id}" data-provider="openrouter" title="Context: ${m.context || 'unknown'}">${icon}${m.name || m.id}</button>`;
+                         }).join('');
+                     }
+                     container.classList.add('visible');
+                     // Trigger active filter automatically on newly fetched models
+                     document.getElementById('openrouterProviderFilter')?.dispatchEvent(new Event('change'));
+                 }
             } catch(e) {
                 console.error(e);
                 TalentMetric.toast('Failed to fetch OpenRouter models', 'error');
