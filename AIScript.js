@@ -818,8 +818,19 @@ const TalentMetric = {
         },
 
         /* ─── Hands-free responsive listening ─── */
+        _makeFreshRecognition() {
+            // Always create a brand-new instance to avoid stale/aborted state from previous usage
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return null;
+            const r = new SpeechRecognition();
+            r.continuous = true;
+            r.interimResults = true;
+            r.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
+            return r;
+        },
+
         startListeningForAnswer() {
-            if (!this.recognition || !this.sessionId || this.isListening) return;
+            if (!this.sessionId || this.isListening) return;
 
             const isEn      = TalentMetric.Lang.current === 'en';
             const input     = document.getElementById('videoTranscriptInput');
@@ -828,6 +839,13 @@ const TalentMetric = {
             const statusTxt = document.getElementById('sttStatusText');
 
             this.isListening = true;
+            // Create a fresh recognition instance to avoid stale/aborted state
+            this.recognition = this._makeFreshRecognition();
+            if (!this.recognition) {
+                this.isListening = false;
+                if (statusTxt) statusTxt.textContent = isEn ? 'Browser does not support voice input' : 'المتصفح لا يدعم إدخال الصوت';
+                return;
+            }
             if (input)     input.value = '';
             if (sttBtn)    { sttBtn.classList.add('listening'); sttBtn.querySelector('i').className = 'fas fa-paper-plane'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
             if (sttWave)   sttWave.classList.add('listening');
@@ -863,15 +881,25 @@ const TalentMetric = {
             };
 
             this.recognition.onerror = (e) => {
-                // no-speech is not fatal — just restart recognition quietly
+                // no-speech: not fatal — restart quietly if we have no transcript yet
                 if (e.error === 'no-speech') {
-                    // If we already have text from earlier, respect the silence timer
                     if (!this._finalTranscript.trim()) {
                         try { this.recognition.start(); } catch(_) {}
                     }
                     return;
                 }
-                // Any real error (not-allowed, audio-capture, aborted): stop and report
+                // aborted: browser released the mic mid-session — retry once after short delay
+                if (e.error === 'aborted') {
+                    if (this.isListening && this.sessionId) {
+                        setTimeout(() => {
+                            if (this.isListening && this.sessionId) {
+                                try { this.recognition.start(); } catch(_) {}
+                            }
+                        }, 300);
+                    }
+                    return;
+                }
+                // Real errors (not-allowed, audio-capture): stop and report
                 this.isListening = false;
                 if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = ''; }
                 if (sttWave) sttWave.classList.remove('listening');
@@ -909,7 +937,7 @@ const TalentMetric = {
         stopListeningAndSend() {
             if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
             this.isListening = false;
-            if (this.recognition) { try { this.recognition.stop(); } catch(e) {} }
+            // Do NOT call recognition.stop() — a fresh instance is created on next listen cycle
             const sttBtn = document.getElementById('sttMicBtn');
             const sttWave = document.getElementById('sttWave');
             if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; }
@@ -953,10 +981,10 @@ const TalentMetric = {
             }
             this.synth.cancel();
 
-            // Stop mic while AI is speaking (prevent feedback)
+            // Flag mic as stopped (a fresh instance is created in startListeningForAnswer)
+            // Do NOT call recognition.stop() here — it can fire aborted into the next session
             if (this.isListening) {
                 this.isListening = false;
-                try { this.recognition.stop(); } catch(e) {}
             }
             if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
 
@@ -975,15 +1003,15 @@ const TalentMetric = {
             utterance.onstart = () => { if (avatar) avatar.classList.add('active'); };
             utterance.onend   = () => {
                 if (avatar) avatar.classList.remove('active');
-                // Auto-start listening after AI finishes — hands-free flow
+                // Auto-start listening after AI finishes — give browser 900ms to fully release audio
                 if (this.mode === 'video' && this.sessionId) {
                     if (statusTxt) statusTxt.textContent = isEn ? 'Your turn — speak your answer' : 'دورك — تحدث الآن';
-                    setTimeout(() => this.startListeningForAnswer(), 500);
+                    setTimeout(() => this.startListeningForAnswer(), 900);
                 }
             };
             utterance.onerror = () => {
                 if (avatar) avatar.classList.remove('active');
-                if (this.mode === 'video' && this.sessionId) setTimeout(() => this.startListeningForAnswer(), 500);
+                if (this.mode === 'video' && this.sessionId) setTimeout(() => this.startListeningForAnswer(), 900);
             };
 
             this.synth.speak(utterance);
@@ -1110,10 +1138,9 @@ const TalentMetric = {
             
             if(this.synth) this.synth.cancel(); // Stop AI speaking when user sends answer
             
-            // Clear silence detection and stop mic before sending
+            // Clear silence detection — mic will not stop explicitly since a fresh instance is used next time
             if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
             this.isListening = false;
-            if (this.recognition) { try { this.recognition.stop(); } catch(e) {} }
             const sttBtn  = document.getElementById('sttMicBtn');
             const sttWave = document.getElementById('sttWave');
             const statusTxt = document.getElementById('sttStatusText');
