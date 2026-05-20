@@ -23,8 +23,11 @@
                 <li><a href="/dashboard">لوحة التحكم</a></li>
                 <li><a href="/skills" class="active">تقييم المهارات</a></li>
                 <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/history">السجل</a></li>
                 <li><a href="/resume">السيرة الذاتية</a></li>
                 <li><a href="/career">المسار المهني</a></li>
+                <li><a href="/profile">حسابي</a></li>
+                <li><button class="btn btn-glass btn-sm lang-toggle-btn" id="langToggleBtn" style="margin-left: 0.5rem; font-weight: bold;">EN</button></li>
                 <li><button class="btn btn-outline btn-sm" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> خروج</button></li>
             </ul>
             <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة"><span></span><span></span><span></span></button>
@@ -123,13 +126,13 @@
                     <div class="score-circle" id="scoreCircle">
                         <svg viewBox="0 0 120 120">
                             <defs>
-                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <linearGradient id="skillsScoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" stop-color="#3B82F6"/>
                                     <stop offset="100%" stop-color="#60A5FA"/>
                                 </linearGradient>
                             </defs>
                             <circle cx="60" cy="60" r="54" class="score-bg"/>
-                            <circle cx="60" cy="60" r="54" class="score-fill" id="scoreFill"/>
+                            <circle cx="60" cy="60" r="54" class="score-fill" id="scoreFill" style="stroke: url(#skillsScoreGradient);"/>
                         </svg>
                         <span class="score-text" id="scoreText">0%</span>
                     </div>

@@ -449,3 +449,9 @@ a:hover{color:var(--secondary)}
 .video-interview-layout{grid-template-columns:1fr}
 .feature-model-grid{grid-template-columns:1fr}
 }
+
+/* GLOBAL DROPDOWN HIGH CONTRAST FIX */
+select option {
+    background: #111111 !important;
+    color: #ffffff !important;
+}

@@ -1,4 +1,3 @@
-
 /* ═══════════════════════════════════════════════════════════════
    Talent Metric — Frontend Logic (AIScript.js)
    ═══════════════════════════════════════════════════════════════ */
@@ -76,6 +75,230 @@ const TalentMetric = {
                 }
             }
         } catch(e) { console.error('Failed to load site config:', e); }
+    },
+
+    /* ═══════ BILINGUAL TRANSLATION ENGINE ═══════ */
+    Lang: {
+        current: 'ar',
+        dict: {
+            // Navbar Links & Global UI
+            'لوحة التحكم': 'Dashboard',
+            'تقييم المهارات': 'Skills Assessment',
+            'المقابلات': 'Interviews',
+            'السجل': 'History',
+            'السيرة الذاتية': 'Resume Builder',
+            'المسار المهني': 'Career Path',
+            'حسابي': 'Account Settings',
+            'خروج': 'Logout',
+            'دخول المشرف': 'Admin Login',
+            
+            // Dashboard page
+            'لوحة التحكم الخاصة بك': 'Your Dashboard',
+            'مرحباً بك مجدداً،': 'Welcome back,',
+            'نظرة عامة على نشاطك المهني وتطور مهاراتك.': 'Overview of your professional activity and skills progress.',
+            'تقييمات المهارات': 'Skills Assessments',
+            'المقابلات التجريبية': 'Mock Interviews',
+            'السير الذاتية المحسنة': 'Enhanced Resumes',
+            'توصيات المسار المهني': 'Career Recommendations',
+            'آخر النشاطات': 'Recent Activities',
+            'ابدأ بتقييم مهاراتك أو إجراء مقابلة تجريبية الآن!': 'Start assessing your skills or take a mock interview now!',
+            
+            // Account settings page
+            'معلومات الحساب': 'Account Information',
+            'الاسم الكامل': 'Full Name',
+            'أدخل اسمك الكامل': 'Enter your full name',
+            'البريد الإلكتروني': 'Email Address',
+            'حفظ التغييرات': 'Save Changes',
+            'تغيير كلمة المرور': 'Change Password',
+            'كلمة المرور الحالية': 'Current Password',
+            'كلمة المرور الجديدة': 'New Password',
+            'تأكيد كلمة المرور': 'Confirm Password',
+            'ملخص الحساب': 'Account Summary',
+            'تاريخ الانضمام': 'Member Since',
+            'إجمالي المقابلات': 'Total Interviews',
+            'إجمالي التقييمات': 'Total Assessments',
+            
+            // History Page
+            'سجل المقابلات': 'Interview History',
+            'راجع نتائج مقابلاتك السابقة': 'Review your previous interview results',
+            'لا توجد مقابلات سابقة': 'No previous interviews',
+            'لم تُجرِ أي مقابلة تجريبية حتى الآن. ابدأ مقابلتك الأولى وستظهر نتائجها هنا.': 'You haven\'t taken any mock interviews yet. Start your first and your results will show here.',
+            'ابدأ مقابلة الآن': 'Start Interview Now',
+            'الجلسات السابقة': 'Previous Sessions',
+            
+            // Skills Assessment Page
+            'تقييم المهارات الذكي': 'Smart Skills Assessment',
+            'حدد مهاراتك واحصل على تقييم شامل لخلفيتك التقنية والمهنية.': 'Select your skills and get a comprehensive evaluation of your technical background.',
+            '1. اختر المهارات': '1. Choose Skills',
+            '2. المهارات المحددة': '2. Selected Skills',
+            'اضف مهارة مخصصة': 'Add custom skill',
+            'أدخل اسم مهارة واضغط Enter': 'Enter skill name and press Enter',
+            'الدور المستهدف (اختياري)': 'Target Role (Optional)',
+            'ابدأ التقييم': 'Start Assessment',
+            'مسار التطوير المقترح': 'Suggested Roadmap',
+            'الفجوات المهنية والتوصيات': 'Skill Gaps & Recommendations',
+            'نقاط القوة': 'Strengths',
+            'التحليل المهني': 'Professional Analysis',
+            'إعادة التقييم': 'Re-assess',
+            
+            // Mock Interview Page
+            'المقابلات الشخصية الذكية': 'Smart Mock Interviews',
+            'تدرّب على المقابلات الشخصية وتلقّ تقييماً فورياً لأدائك مع مدرب الذكاء الاصطناعي.': 'Practice job interviews and receive instant feedback on your performance with AI.',
+            'اختر مجال المقابلة': 'Choose Interview Field',
+            'الدور الوظيفي المستهدف': 'Target Job Role',
+            'مثال: مهندس برمجيات': 'e.g. Software Engineer',
+            'نوع المقابلة': 'Interview Type',
+            'مقابلة نصية / صوتية': 'Text / Voice Interview',
+            'تعتمد على المحادثة الكتابية والتعرف على الصوت.': 'Relies on chat messaging and speech recognition.',
+            'مقابلة مرئية (فيديو)': 'Video Interview (Camera)',
+            'تتضمن تشغيل الكاميرا وتحليل الحضور ولغة الجسد.': 'Includes camera activation, analyzing presence and body language.',
+            'ابدأ المقابلة': 'Start Interview',
+            'السؤال': 'Question',
+            'أرسل': 'Send',
+            'إنهاء المقابلة': 'End Interview',
+            'التحليل والتقييم النهائي': 'Final Analysis & Score',
+            'النتيجة العامة': 'Overall Score',
+            'الملخص العام': 'General Summary',
+            'نقاط القوة والمميزات': 'Strengths & Advantages',
+            'نقاط التحسين والتطوير': 'Areas for Improvement',
+            'نصائح للنجاح': 'Success Tips',
+            'إغلاق المعاينة': 'Close Preview',
+            'ميكروفون': 'Microphone',
+            'كاميرا': 'Camera',
+            'صوت المساعد': 'AI Voice',
+            'تحدث الآن...': 'Speak now...',
+            'اكتب إجابتك هنا...': 'Type your answer here...',
+            'التعرف على الصوت مفعل': 'Voice recognition active',
+            
+            // Resume Enhancer
+            'محسّن السير الذاتية الذكي': 'Smart Resume Enhancer',
+            'أنشئ سيرة ذاتية احترافية متوافقة مع أنظمة الفرز الذاتية بمساعدة الذكاء الاصطناعي.': 'Create a professional, ATS-compatible resume with AI assistance.',
+            'المعلومات الأساسية': 'Basic Information',
+            'الخبرات العملية': 'Work Experience',
+            'التعليم والمهارات': 'Education & Skills',
+            'رؤية المعاينة': 'Live Preview',
+            'الاسم': 'Name',
+            'البريد': 'Email',
+            'الهاتف': 'Phone',
+            'المسمى المهني': 'Job Title',
+            'الملخص المهني الحالي': 'Current Professional Summary',
+            'تحسين السيرة الذاتية': 'Enhance Resume',
+            'تصدير PDF': 'Export PDF',
+            'اسم الشركة / المنظمة': 'Company / Organization Name',
+            'من': 'From',
+            'إلى': 'To',
+            'شرح المهام والإنجازات': 'Description of tasks and achievements',
+            'الدرجة العلمية / التخصص': 'Degree / Specialization',
+            'الجامعة / المؤسسة': 'University / Institution',
+            'سنة التخرج': 'Graduation Year',
+            'المهارات التقنية (مفصولة بفاصلة)': 'Technical Skills (comma separated)',
+            'المهارات الشخصية': 'Soft Skills',
+            'اللغات': 'Languages',
+            'ابدأ بملء البيانات لرؤية المعاينة': 'Start filling in details to see live preview',
+            
+            // Career Advisory
+            'مستشار المسار المهني': 'Career Path Advisor',
+            'اكتشف الخيارات المهنية المتاحة وتلقّ نصائح عملية لتحقيق أهدافك الوظيفية.': 'Discover available career options and receive practical advice to achieve goals.',
+            'أدخل مهاراتك الحالية': 'Enter your current skills',
+            'مثال: Python, SQL, تحليل البيانات': 'e.g. Python, SQL, Data Analysis',
+            'اهتماماتك ومجالات شغفك': 'Your interests and passion areas',
+            'مثال: الذكاء الاصطناعي، العمل المالي': 'e.g. AI, Finance, Web development',
+            'سنوات الخبرة المهنية': 'Years of professional experience',
+            'الحصول على التوصيات': 'Get Recommendations',
+            'توصيات المسارات المهنية': 'Recommended Career Paths',
+            'إعادة البحث': 'Search Again',
+            'نسبة التوافق': 'Compatibility',
+            'الطلب المستقبلي': 'Growth Outlook',
+            'متوسط الرواتب': 'Salary Range'
+        },
+        revDict: {},
+        
+        init() {
+            // Build the reverse mapping dictionary dynamically to keep footprint low
+            for (const [ar, en] of Object.entries(this.dict)) {
+                this.revDict[en] = ar;
+            }
+            
+            // Set language from local storage, default to 'ar'
+            this.current = localStorage.getItem('talentmetric_lang') || 'ar';
+            
+            // Bind language toggle button click listeners
+            document.querySelectorAll('#langToggleBtn, .lang-toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const next = this.current === 'ar' ? 'en' : 'ar';
+                    this.setLang(next);
+                });
+            });
+            
+            // Apply language modifications to active DOM
+            this.applyTranslations();
+        },
+        
+        setLang(lang) {
+            this.current = lang;
+            localStorage.setItem('talentmetric_lang', lang);
+            this.applyTranslations();
+            TalentMetric.toast(lang === 'en' ? 'Language switched to English' : 'تم تغيير اللغة إلى العربية', 'success');
+        },
+        
+        applyTranslations() {
+            const isEn = this.current === 'en';
+            
+            // Update page directional metadata and body styles
+            document.documentElement.setAttribute('lang', this.current);
+            document.documentElement.setAttribute('dir', isEn ? 'ltr' : 'rtl');
+            document.body.style.fontFamily = isEn ? "'Inter', sans-serif" : "'Cairo', sans-serif";
+            
+            // Update text inside the toggle buttons themselves
+            document.querySelectorAll('#langToggleBtn, .lang-toggle-btn').forEach(btn => {
+                btn.textContent = isEn ? 'AR' : 'EN';
+            });
+            
+            // Recursively scan DOM Text nodes to apply text mapping
+            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walk.nextNode()) {
+                const parent = node.parentNode;
+                if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.tagName === 'I' || parent.closest('.chat-message')) continue;
+                
+                const trimmed = node.nodeValue.trim();
+                if (!trimmed) continue;
+                
+                if (isEn) {
+                    if (this.dict[trimmed]) {
+                        node.nodeValue = node.nodeValue.replace(trimmed, this.dict[trimmed]);
+                    }
+                } else {
+                    if (this.revDict[trimmed]) {
+                        node.nodeValue = node.nodeValue.replace(trimmed, this.revDict[trimmed]);
+                    }
+                }
+            }
+            
+            // Translate placeholders, inputs, and layout styles
+            document.querySelectorAll('input, textarea').forEach(el => {
+                const ph = el.getAttribute('placeholder');
+                if (ph) {
+                    const trimmed = ph.trim();
+                    if (isEn) {
+                        if (this.dict[trimmed]) el.setAttribute('placeholder', this.dict[trimmed]);
+                    } else {
+                        if (this.revDict[trimmed]) el.setAttribute('placeholder', this.revDict[trimmed]);
+                    }
+                }
+            });
+            
+            // Toggle LTR layout rules across standard components
+            document.querySelectorAll('.navbar-app, .nav-container, .nav-links, .dash-card, .form-group').forEach(el => {
+                if (isEn) {
+                    el.classList.add('ltr-layout');
+                    el.classList.remove('rtl-layout');
+                } else {
+                    el.classList.add('rtl-layout');
+                    el.classList.remove('ltr-layout');
+                }
+            });
+        }
     },
 
     /* ═══════ AUTH MODULE ═══════ */
@@ -193,7 +416,6 @@ const TalentMetric = {
                 toggleText.textContent = 'تسجيل الدخول كمستخدم';
                 btnText.innerHTML = '<i class="fas fa-shield-halved"></i> دخول المشرف';
                 
-                // Force login tab active without triggering event
                 document.getElementById('loginTab').classList.add('active');
                 document.getElementById('registerTab').classList.remove('active');
                 document.getElementById('loginForm').classList.add('active');
@@ -223,7 +445,10 @@ const TalentMetric = {
             const nameEl = document.getElementById('userName');
             if (nameEl && user) nameEl.textContent = user.name;
             const dateEl = document.getElementById('currentDate');
-            if (dateEl) dateEl.textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            if (dateEl) {
+                const isEn = TalentMetric.Lang.current === 'en';
+                dateEl.textContent = new Date().toLocaleDateString(isEn ? 'en-US' : 'ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
             this.loadStats();
         },
         async loadStats() {
@@ -234,11 +459,11 @@ const TalentMetric = {
                 document.getElementById('kpiResumes').textContent = data.stats.resumes;
                 document.getElementById('kpiCareers').textContent = data.stats.careers;
                 const feed = document.getElementById('activityFeed');
-                if (data.activities && data.activities.length > 0) {
-                    feed.innerHTML = data.activities.map(a => `
+                if (data.activity && data.activity.length > 0) {
+                    feed.innerHTML = data.activity.map(a => `
                         <div class="activity-item">
                             <div class="activity-icon ${a.type}"><i class="fas fa-${a.type === 'skills' ? 'chart-line' : a.type === 'interview' ? 'microphone-lines' : a.type === 'resume' ? 'file-lines' : a.type === 'career' ? 'route' : 'user'}"></i></div>
-                            <div class="activity-info"><span>${a.title}</span><span class="activity-date">${a.date}</span></div>
+                            <div class="activity-info"><span>${a.title}</span><span class="activity-date">${new Date(a.created_at).toLocaleDateString(TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA')}</span></div>
                         </div>`).join('');
                 }
             } catch (err) { console.error(err); }
@@ -296,13 +521,13 @@ const TalentMetric = {
             });
         },
         async assess() {
-            if (this.selectedSkills.length === 0) { TalentMetric.toast('يرجى اختيار مهارة واحدة على الأقل', 'error'); return; }
+            if (this.selectedSkills.length === 0) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please select at least one skill' : 'يرجى اختيار مهارة واحدة على الأقل', 'error'); return; }
             const targetRole = document.getElementById('targetRole').value.trim();
             TalentMetric.showLoading();
             try {
                 const result = await TalentMetric.api('/api/skills/assess', {
                     method: 'POST',
-                    body: JSON.stringify({ skills: this.selectedSkills, target_role: targetRole })
+                    body: JSON.stringify({ skills: this.selectedSkills, target_role: targetRole, lang: TalentMetric.Lang.current })
                 });
                 this.showResults(result);
             } catch (err) {
@@ -326,7 +551,7 @@ const TalentMetric = {
             // Gaps
             const gList = document.getElementById('gapsList');
             gList.innerHTML = (data.gaps || []).map(g => {
-                const imp = g.importance === 'عالية' ? 'high' : g.importance === 'متوسطة' ? 'medium' : 'low';
+                const imp = g.importance === 'عالية' || g.importance === 'High' ? 'high' : g.importance === 'متوسطة' || g.importance === 'Medium' ? 'medium' : 'low';
                 return `<div class="gap-item"><h4>${g.skill}</h4><span class="gap-importance ${imp}">${g.importance}</span><p>${g.recommendation}</p></div>`;
             }).join('');
             // Roadmap
@@ -342,11 +567,11 @@ const TalentMetric = {
         }
     },
 
-        /* ═══════ INTERVIEW MODULE ═══════ */
+    /* ═══════ INTERVIEW MODULE ═══════ */
     Interview: {
         sessionId: null, questionCount: 0, mode: 'chat',
         stream: null, recognition: null, synth: window.speechSynthesis, ttsEnabled: true,
-        timerInt: null, seconds: 0,
+        timerInt: null, seconds: 0, accumulatedStreamText: '',
         
         init() {
             if (!TalentMetric.requireAuth()) return;
@@ -419,13 +644,13 @@ const TalentMetric = {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechRecognition) {
                 this.recognition = new SpeechRecognition();
-                this.recognition.lang = 'ar-SA';
+                this.recognition.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
                 this.recognition.continuous = false;
                 this.recognition.interimResults = true;
             }
         },
         toggleSTT(inputId, btnId, waveId = null) {
-            if(!this.recognition) { TalentMetric.toast('متصفحك لا يدعم إدخال الصوت', 'error'); return; }
+            if(!this.recognition) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Your browser does not support Speech Recognition.' : 'متصفحك لا يدعم إدخال الصوت', 'error'); return; }
             const btn = document.getElementById(btnId);
             const input = document.getElementById(inputId);
             const wave = waveId ? document.getElementById(waveId) : null;
@@ -437,6 +662,8 @@ const TalentMetric = {
             } else {
                 btn.classList.add('listening');
                 if(wave) wave.classList.add('listening');
+                
+                this.recognition.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
                 
                 this.recognition.onresult = (e) => {
                     let text = '';
@@ -454,7 +681,7 @@ const TalentMetric = {
             if(!this.ttsEnabled || !this.synth) return;
             this.synth.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ar-SA';
+            utterance.lang = TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-SA';
             
             const avatar = document.getElementById('aiSpeakingIndicator');
             utterance.onstart = () => { if(avatar) avatar.classList.add('active'); };
@@ -470,12 +697,12 @@ const TalentMetric = {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const video = document.getElementById('previewVideo');
                 if(video) video.srcObject = stream;
-                document.getElementById('camStatusText').textContent = 'الكاميرا والميكروفون تعملان';
+                document.getElementById('camStatusText').textContent = TalentMetric.Lang.current === 'en' ? 'Camera & Mic active' : 'الكاميرا والميكروفون تعملان';
                 document.getElementById('camDot').classList.add('active');
             } catch(e) {
-                document.getElementById('camStatusText').textContent = 'تعذر الوصول للكاميرا';
+                document.getElementById('camStatusText').textContent = TalentMetric.Lang.current === 'en' ? 'Cannot access camera' : 'تعذر الوصول للكاميرا';
                 document.getElementById('camDot').classList.remove('active');
-                TalentMetric.toast('يرجى السماح بالوصول للكاميرا', 'error');
+                TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please grant camera access.' : 'يرجى السماح بالوصول للكاميرا', 'error');
             }
         },
         stopPreview() {
@@ -512,20 +739,21 @@ const TalentMetric = {
 
             try {
                 const data = await TalentMetric.api('/api/interview/start', {
-                    method: 'POST', body: JSON.stringify({ role, field, mode: this.mode })
+                    method: 'POST', body: JSON.stringify({ role, field, mode: this.mode, lang: TalentMetric.Lang.current })
                 });
                 this.sessionId = data.session_id;
                 this.questionCount = 1;
                 
                 document.getElementById('interviewSetup').style.display = 'none';
+                const isEn = TalentMetric.Lang.current === 'en';
                 
                 if(this.mode === 'video') {
                     document.getElementById('interviewVideo').style.display = 'block';
-                    document.getElementById('videoQuestionCounter').textContent = 'السؤال ' + this.questionCount;
+                    document.getElementById('videoQuestionCounter').textContent = (isEn ? 'Question ' : 'السؤال ') + this.questionCount;
                     this.startTimer();
                 } else {
                     document.getElementById('interviewChat').style.display = 'block';
-                    document.getElementById('questionCounter').textContent = 'السؤال ' + this.questionCount;
+                    document.getElementById('questionCounter').textContent = (isEn ? 'Question ' : 'السؤال ') + this.questionCount;
                 }
                 
                 this.addMessage(data.question, 'ai');
@@ -588,22 +816,180 @@ const TalentMetric = {
             this.addMessage(answer, 'user');
             this.showTyping();
             document.getElementById(btnId).disabled = true;
+
+            // Capture base64 snapshot from camera vision if in video mode
+            let frameB64 = null;
+            if (this.mode === 'video') {
+                try {
+                    const video = document.getElementById('interviewVideoFeed');
+                    const canvas = document.getElementById('videoCaptureCanvas');
+                    if (video && canvas) {
+                        canvas.width = 320;
+                        canvas.height = 240;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, 320, 240);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        frameB64 = dataUrl.split(',')[1];
+                    }
+                } catch (e) {
+                    console.error("Failed to capture video snapshot for AI Vision:", e);
+                }
+            }
             
             try {
-                const data = await TalentMetric.api('/api/interview/respond', {
-                    method: 'POST', body: JSON.stringify({ session_id: this.sessionId, answer })
+                // Post answer to live streaming SSE endpoint
+                const response = await fetch('/api/interview/respond/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + TalentMetric.getToken()
+                    },
+                    body: JSON.stringify({
+                        session_id: this.sessionId,
+                        answer,
+                        frame_b64: frameB64
+                    })
                 });
-                this.hideTyping();
-                this.questionCount++;
-                if(modeStr === 'video') document.getElementById('videoQuestionCounter').textContent = 'السؤال ' + this.questionCount;
-                else document.getElementById('questionCounter').textContent = 'السؤال ' + this.questionCount;
                 
-                this.addMessage(data.question, 'ai', data.feedback, data.score);
-                this.speak(data.question);
+                this.hideTyping();
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to stream response');
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+                this.accumulatedStreamText = "";
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop(); // save incomplete line in buffer
+                    
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            const jsonStr = line.substring(6).trim();
+                            if (jsonStr) {
+                                try {
+                                    const parsed = JSON.parse(jsonStr);
+                                    if (parsed.error) throw new Error(parsed.error);
+                                    
+                                    if (parsed.token) {
+                                        this.accumulatedStreamText += parsed.token;
+                                        this.updateStreamBubble(this.accumulatedStreamText);
+                                    }
+                                    
+                                    if (parsed.done) {
+                                        // Final finished token packet received
+                                        const finalData = parsed;
+                                        
+                                        // Remove streaming bubble preview
+                                        const bubble = document.getElementById('streamingBubble');
+                                        if (bubble) bubble.remove();
+                                        
+                                        this.questionCount = finalData.question_count;
+                                        const counterId = this.mode === 'video' ? 'videoQuestionCounter' : 'questionCounter';
+                                        const counterEl = document.getElementById(counterId);
+                                        if (counterEl) {
+                                            counterEl.textContent = (TalentMetric.Lang.current === 'en' ? 'Question ' : 'السؤال ') + this.questionCount;
+                                        }
+                                        
+                                        if (!finalData.interview_done && finalData.next_question) {
+                                            this.addMessage(finalData.next_question, 'ai', finalData.feedback, finalData.score);
+                                            this.speak(finalData.next_question);
+                                        } else if (finalData.interview_done) {
+                                            this.addMessage(TalentMetric.Lang.current === 'en' ? 'Thank you! The interview is complete.' : 'شكرًا لك! تم الانتهاء من المقابلة.', 'ai', finalData.feedback, finalData.score);
+                                            setTimeout(() => this.end(), 1500);
+                                        }
+                                        return;
+                                    }
+                                } catch (e) {
+                                    console.error("Stream parse error:", e);
+                                }
+                            }
+                        }
+                    }
+                }
             } catch (err) {
                 this.hideTyping();
-                TalentMetric.toast(err.error || 'خطأ', 'error');
-            } finally { document.getElementById(btnId).disabled = false; }
+                const bubble = document.getElementById('streamingBubble');
+                if (bubble) bubble.remove();
+                TalentMetric.toast(err.message || 'خطأ في الاتصال بالبث المباشر', 'error');
+            } finally {
+                document.getElementById(btnId).disabled = false;
+            }
+        },
+        updateStreamBubble(text) {
+            const container = this.mode === 'video' ? document.getElementById('videoMessages') : document.getElementById('chatMessages');
+            if (!container) return;
+            
+            let bubble = document.getElementById('streamingBubble');
+            if (!bubble) {
+                bubble = document.createElement('div');
+                bubble.className = 'chat-message ai streaming';
+                bubble.id = 'streamingBubble';
+                container.appendChild(bubble);
+            }
+            
+            const isEn = TalentMetric.Lang.current === 'en';
+            const fbTag = isEn ? '[FEEDBACK]:' : '[التقييم]:';
+            const scTag = isEn ? '[SCORE]:' : '[النقاط]:';
+            const quTag = isEn ? '[QUESTION]:' : '[السؤال]:';
+            
+            let fbText = "";
+            let scText = "";
+            let quText = "";
+            
+            const fbIdx = text.indexOf(fbTag);
+            const scIdx = text.indexOf(scTag);
+            const quIdx = text.indexOf(quTag);
+            
+            const sorted = [
+                { tag: 'fb', idx: fbIdx, tagLen: fbTag.length },
+                { tag: 'sc', idx: scIdx, tagLen: scTag.length },
+                { tag: 'qu', idx: quIdx, tagLen: quTag.length }
+            ].filter(o => o.idx !== -1).sort((a,b) => a.idx - b.idx);
+            
+            if (sorted.length === 0) {
+                bubble.innerHTML = `<div class="streaming-text">${text}</div>`;
+            } else {
+                let html = '';
+                for (let i = 0; i < sorted.length; i++) {
+                    const current = sorted[i];
+                    const startPos = current.idx + current.tagLen;
+                    const nextIdx = (i + 1 < sorted.length) ? sorted[i+1].idx : text.length;
+                    const content = text.substring(startPos, nextIdx).trim();
+                    
+                    if (current.tag === 'fb') fbText = content;
+                    else if (current.tag === 'sc') scText = content;
+                    else if (current.tag === 'qu') quText = content;
+                }
+                
+                if (fbText) {
+                    html += `<div class="stream-section feedback-section" style="margin-bottom:0.8rem; background:rgba(255,255,255,0.03); padding:0.6rem; border-radius:8px; border-left: 3px solid var(--primary);">
+                        <strong style="display:block;margin-bottom:0.2rem;color:var(--primary);font-size:0.85rem;"><i class="fas fa-comment-dots"></i> ${isEn ? 'Evaluation' : 'التقييم'}:</strong>
+                        <p style="margin:0;font-size:0.9rem;color:var(--text-main);">${fbText}</p>
+                    </div>`;
+                }
+                if (scText) {
+                    html += `<div class="stream-section score-section" style="margin-bottom:0.8rem; background:rgba(16,185,129,0.08); padding:0.6rem; border-radius:8px; border-left: 3px solid #34d399; display:inline-flex; align-items:center; gap:0.5rem;">
+                        <strong style="color:#34d399;font-size:0.85rem;"><i class="fas fa-star"></i> ${isEn ? 'Score' : 'النقاط'}:</strong>
+                        <span class="score-pill" style="font-weight:700;color:#34d399;">${scText}/10</span>
+                    </div>`;
+                }
+                if (quText) {
+                    html += `<div class="stream-section question-section" style="background:rgba(59,130,246,0.08); padding:0.6rem; border-radius:8px; border-left: 3px solid #60a5fa;">
+                        <strong style="display:block;margin-bottom:0.2rem;color:#60a5fa;font-size:0.85rem;"><i class="fas fa-question-circle"></i> ${isEn ? 'Next Question' : 'السؤال التالي'}:</strong>
+                        <p class="question-text" style="margin:0;font-size:0.92rem;font-weight:600;color:#e2e8f0;">${quText}</p>
+                    </div>`;
+                }
+                bubble.innerHTML = html;
+            }
+            container.scrollTop = container.scrollHeight;
         },
         async end() {
             if (!this.sessionId) return;
@@ -711,39 +1097,39 @@ const TalentMetric = {
             const d = this.getData();
             const preview = document.getElementById('resumePreview');
             if (!d.name && !d.email) {
-                preview.innerHTML = '<div class="preview-placeholder"><i class="fas fa-file-lines"></i><p>ابدأ بملء البيانات لرؤية المعاينة</p></div>';
+                preview.innerHTML = `<div class="preview-placeholder"><i class="fas fa-file-lines"></i><p>${TalentMetric.Lang.current === 'en' ? 'Start filling details to see live preview' : 'ابدأ بملء البيانات لرؤية المعاينة'}</p></div>`;
                 return;
             }
             let html = '<div class="preview-name">' + (d.name || '') + '</div>';
             html += '<div class="preview-contact">' + [d.title, d.email, d.phone].filter(Boolean).join(' | ') + '</div>';
-            if (d.summary) html += '<div class="preview-section"><h2>الملخص المهني</h2><p>' + d.summary + '</p></div>';
+            if (d.summary) html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Professional Summary' : 'الملخص المهني'}</h2><p>` + d.summary + '</p></div>';
             if (d.experience.length) {
-                html += '<div class="preview-section"><h2>الخبرات العملية</h2>';
+                html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Work Experience' : 'الخبرات العملية'}</h2>`;
                 d.experience.forEach(e => { html += '<h3>' + e.title + ' - ' + e.company + '</h3><p style="color:#999;font-size:.75rem">' + e.from + ' - ' + e.to + '</p><p>' + e.description + '</p>'; });
                 html += '</div>';
             }
             if (d.education.length) {
-                html += '<div class="preview-section"><h2>التعليم</h2>';
+                html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Education' : 'التعليم'}</h2>`;
                 d.education.forEach(e => { html += '<h3>' + e.degree + '</h3><p>' + e.school + ' - ' + e.year + '</p>'; });
                 html += '</div>';
             }
-            if (d.skills_tech) html += '<div class="preview-section"><h2>المهارات التقنية</h2><p>' + d.skills_tech + '</p></div>';
-            if (d.skills_soft) html += '<div class="preview-section"><h2>المهارات الشخصية</h2><p>' + d.skills_soft + '</p></div>';
-            if (d.languages) html += '<div class="preview-section"><h2>اللغات</h2><p>' + d.languages + '</p></div>';
+            if (d.skills_tech) html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Technical Skills' : 'المهارات التقنية'}</h2><p>` + d.skills_tech + '</p></div>';
+            if (d.skills_soft) html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Soft Skills' : 'المهارات الشخصية'}</h2><p>` + d.skills_soft + '</p></div>';
+            if (d.languages) html += `<div class="preview-section"><h2>${TalentMetric.Lang.current === 'en' ? 'Languages' : 'اللغات'}</h2><p>` + d.languages + '</p></div>';
             preview.innerHTML = html;
         },
         async generate() {
             const data = this.getData();
-            if (!data.name) { TalentMetric.toast('يرجى إدخال الاسم على الأقل', 'error'); return; }
+            if (!data.name) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please fill in your name first' : 'يرجى إدخال الاسم على الأقل', 'error'); return; }
             TalentMetric.showLoading();
             try {
-                const result = await TalentMetric.api('/api/resume/generate', { method: 'POST', body: JSON.stringify(data) });
+                const result = await TalentMetric.api('/api/resume/generate', { method: 'POST', body: JSON.stringify({ ...data, lang: TalentMetric.Lang.current }) });
                 if (result.enhancements?.professional_summary) {
                     document.getElementById('resSummary').value = result.enhancements.professional_summary;
                 }
                 this.updatePreview();
                 document.getElementById('exportPdfBtn').style.display = 'inline-flex';
-                TalentMetric.toast('تم تحسين السيرة الذاتية بنجاح!', 'success');
+                TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Resume optimized successfully!' : 'تم تحسين السيرة الذاتية بنجاح!', 'success');
             } catch (err) { TalentMetric.toast(err.error || 'خطأ', 'error'); }
             finally { TalentMetric.hideLoading(); }
         },
@@ -761,7 +1147,7 @@ const TalentMetric = {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = 'resume.pdf'; a.click();
                 URL.revokeObjectURL(url);
-                TalentMetric.toast('تم تصدير السيرة الذاتية!', 'success');
+                TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Resume downloaded!' : 'تم تصدير السيرة الذاتية!', 'success');
             } catch (err) { TalentMetric.toast('خطأ في التصدير', 'error'); }
             finally { TalentMetric.hideLoading(); }
         }
@@ -783,17 +1169,18 @@ const TalentMetric = {
             const skills = document.getElementById('careerSkills').value.trim().split(/[,،]+/).map(s => s.trim()).filter(Boolean);
             const interests = document.getElementById('careerInterests').value.trim();
             const experience = parseInt(document.getElementById('careerExperience').value) || 0;
-            if (skills.length === 0) { TalentMetric.toast('يرجى إدخال مهاراتك', 'error'); return; }
+            if (skills.length === 0) { TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Please fill in your current skills' : 'يرجى إدخال مهاراتك', 'error'); return; }
             TalentMetric.showLoading();
             try {
                 const result = await TalentMetric.api('/api/career/recommend', {
-                    method: 'POST', body: JSON.stringify({ skills, interests, experience_years: experience })
+                    method: 'POST', body: JSON.stringify({ skills, interests, experience_years: experience, lang: TalentMetric.Lang.current })
                 });
                 this.showResults(result);
             } catch (err) { TalentMetric.toast(err.error || 'خطأ', 'error'); }
             finally { TalentMetric.hideLoading(); }
         },
         showResults(data) {
+            const isEn = TalentMetric.Lang.current === 'en';
             document.getElementById('careerInput').style.display = 'none';
             document.getElementById('careerResults').style.display = 'block';
             document.getElementById('careerAdvice').textContent = data.general_advice || '';
@@ -805,16 +1192,273 @@ const TalentMetric = {
                         <span class="match-badge">${p.match_percentage}%</span>
                     </div>
                     <p>${p.description}</p>
-                    <div class="career-detail"><i class="fas fa-money-bill-wave"></i> ${p.salary_range || 'غير محدد'}</div>
-                    <div class="career-detail"><i class="fas fa-chart-line"></i> ${p.growth_outlook || 'غير محدد'}</div>
+                    <div class="career-detail"><i class="fas fa-money-bill-wave"></i> ${isEn ? 'Salary: ' : 'الراتب: '} ${p.salary_range || (isEn ? 'Not set' : 'غير محدد')}</div>
+                    <div class="career-detail"><i class="fas fa-chart-line"></i> ${isEn ? 'Outlook: ' : 'الطلب المستقبلي: '} ${p.growth_outlook || (isEn ? 'Not set' : 'غير محدد')}</div>
                     <div class="career-skills">${(p.required_skills || []).map(s => '<span>' + s + '</span>').join('')}</div>
                 </div>
             `).join('');
         }
     },
 
+    /* ═══════ INTERVIEW HISTORY MODULE ═══════ */
+    History: {
+        init() {
+            if (!TalentMetric.requireAuth()) return;
+            this.loadHistory();
+        },
+        async loadHistory() {
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            const count = document.getElementById('sessionCount');
+            if (!list) return;
+            
+            try {
+                const data = await TalentMetric.api('/api/interview/history');
+                if (loading) loading.style.display = 'none';
+                
+                const items = data.items || [];
+                if (items.length === 0) {
+                    if (empty) empty.style.display = 'block';
+                    list.style.display = 'none';
+                } else {
+                    if (empty) empty.style.display = 'none';
+                    list.style.display = 'block';
+                    
+                    const isEn = TalentMetric.Lang.current === 'en';
+                    if (count) {
+                        count.textContent = isEn ? `${data.total || items.length} Sessions` : `${data.total || items.length} جلسة`;
+                    }
+                    
+                    // Render Cards
+                    const toolbar = list.querySelector('.section-toolbar');
+                    const cards = list.querySelectorAll('.history-card');
+                    cards.forEach(c => c.remove());
+                    
+                    items.forEach(item => {
+                        const score = item.overall_score || 0;
+                        const scoreClass = score >= 8 ? 'score-high' : score >= 6 ? 'score-mid' : 'score-low';
+                        const modeIcon = item.mode === 'video' ? 'fa-video' : 'fa-comments';
+                        const modeText = item.mode === 'video' 
+                            ? (isEn ? 'Video' : 'فيديو') 
+                            : (isEn ? 'Chat' : 'محادثة');
+                            
+                        const card = document.createElement('div');
+                        card.className = 'history-card';
+                        card.dataset.id = item.id;
+                        
+                        card.innerHTML = `
+                            <div class="history-card-header">
+                                <div class="history-card-title">${item.role || (isEn ? 'General' : 'عام')}</div>
+                                <div class="history-card-meta">
+                                    <span class="history-date">${new Date(item.created_at).toLocaleDateString(isEn ? 'en-US' : 'ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                    <span class="score-badge ${scoreClass}">${score}/10</span>
+                                </div>
+                            </div>
+                            <div class="history-tags">
+                                <span class="tag-chip"><i class="fas fa-layer-group"></i> ${item.field || (isEn ? 'General' : 'عام')}</span>
+                                <span class="tag-chip"><i class="fas ${modeIcon}"></i> ${modeText}</span>
+                            </div>
+                            <button class="toggle-details-btn">
+                                <i class="fas fa-chevron-down"></i>
+                                <span>${isEn ? 'View Analysis Details' : 'عرض تفاصيل التحليل'}</span>
+                            </button>
+                            <div class="history-details">
+                                <div style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+                                    <strong>${isEn ? 'Summary:' : 'الملخص:'}</strong> ${item.summary || ''}
+                                </div>
+                                <div class="detail-group strengths">
+                                    <h4><i class="fas fa-circle-check"></i> ${isEn ? 'Strengths' : 'نقاط القوة'}</h4>
+                                    <ul class="detail-list strengths-list">
+                                        ${(item.strengths || []).map(s => `<li>${s}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <div class="detail-group improvements">
+                                    <h4><i class="fas fa-circle-exclamation"></i> ${isEn ? 'Areas for Improvement' : 'نقاط التحسين'}</h4>
+                                    <ul class="detail-list improvements-list">
+                                        ${(item.improvements || []).map(i => `<li>${i}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <div class="detail-group tips">
+                                    <h4><i class="fas fa-lightbulb"></i> ${isEn ? 'Tips for Success' : 'نصائح للنجاح'}</h4>
+                                    <ul class="detail-list tips-list">
+                                        ${(item.tips || []).map(t => `<li>${t}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Accordion collapsible trigger click logic
+                        const toggleBtn = card.querySelector('.toggle-details-btn');
+                        const details = card.querySelector('.history-details');
+                        
+                        const toggle = (e) => {
+                            e.stopPropagation();
+                            const isOpen = details.classList.toggle('open');
+                            toggleBtn.classList.toggle('open', isOpen);
+                            toggleBtn.querySelector('span').textContent = isOpen 
+                                ? (isEn ? 'Hide Analysis Details' : 'إخفاء تفاصيل التحليل')
+                                : (isEn ? 'View Analysis Details' : 'عرض تفاصيل التحليل');
+                        };
+                        
+                        card.addEventListener('click', toggle);
+                        toggleBtn.addEventListener('click', toggle);
+                        
+                        list.appendChild(card);
+                    });
+                }
+            } catch(err) {
+                console.error(err);
+                if (loading) loading.style.display = 'none';
+                TalentMetric.toast(TalentMetric.Lang.current === 'en' ? 'Failed to load history' : 'تعذر تحميل السجل', 'error');
+            }
+        }
+    },
 
-        /* ═══════ ADMIN MODULE ═══════ */
+    /* ═══════ USER PROFILE SETTINGS MODULE ═══════ */
+    Profile: {
+        async init() {
+            if (!TalentMetric.requireAuth()) return;
+            
+            const user = TalentMetric.getUser();
+            if (user) {
+                this.renderUserProfile(user);
+            }
+            
+            // Load dashboard stats and member date
+            this.loadProfileData();
+            
+            // Hook settings clicks
+            document.getElementById('saveProfileBtn')?.addEventListener('click', () => this.saveProfile());
+            document.getElementById('changePasswordBtn')?.addEventListener('click', () => this.changePassword());
+        },
+        
+        renderUserProfile(user) {
+            const nameEl = document.getElementById('profileName');
+            const emailEl = document.getElementById('profileEmail');
+            const initials = document.getElementById('profileAvatarInitials');
+            const name = document.getElementById('profileAvatarName');
+            const email = document.getElementById('profileAvatarEmail');
+            
+            if (nameEl) nameEl.value = user.name || '';
+            if (emailEl) emailEl.value = user.email || '';
+            if (name) name.textContent = user.name || '—';
+            if (email) email.textContent = user.email || '—';
+            if (initials && user.name) {
+                initials.textContent = user.name.trim().charAt(0).toUpperCase();
+            }
+        },
+        
+        async loadProfileData() {
+            try {
+                const data = await TalentMetric.api('/api/dashboard/stats');
+                
+                const interviews = document.getElementById('profileInterviews');
+                const assessments = document.getElementById('profileAssessments');
+                const memberSince = document.getElementById('memberSince');
+                
+                if (interviews) interviews.textContent = data.stats.interviews || 0;
+                if (assessments) assessments.textContent = data.stats.assessments || 0;
+                
+                if (memberSince) {
+                    const isEn = TalentMetric.Lang.current === 'en';
+                    memberSince.textContent = new Date().toLocaleDateString(isEn ? 'en-US' : 'ar-SA', { year: 'numeric', month: 'long' });
+                }
+                
+                if (data.user) {
+                    this.renderUserProfile(data.user);
+                    TalentMetric.setUser(data.user);
+                }
+            } catch(e) { console.error('Failed to load profile data:', e); }
+        },
+        
+        async saveProfile() {
+            const nameEl = document.getElementById('profileName');
+            const emailEl = document.getElementById('profileEmail');
+            const msgEl = document.getElementById('profileSaveMsg');
+            if (!nameEl || !emailEl || !msgEl) return;
+            
+            const name = nameEl.value.trim();
+            const email = emailEl.value.trim();
+            const isEn = TalentMetric.Lang.current === 'en';
+            
+            if (!name || !email) {
+                msgEl.textContent = isEn ? '✗ Please fill all fields' : '✗ يرجى ملء جميع الحقول';
+                msgEl.className = 'save-msg error';
+                return;
+            }
+            
+            msgEl.textContent = isEn ? 'Saving...' : 'جاري الحفظ...';
+            msgEl.className = 'save-msg';
+            
+            try {
+                const result = await TalentMetric.api('/api/auth/profile', {
+                    method: 'PUT',
+                    body: JSON.stringify({ name, email })
+                });
+                
+                if (result.ok && result.user) {
+                    TalentMetric.setUser(result.user);
+                    this.renderUserProfile(result.user);
+                    msgEl.textContent = isEn ? '✓ Profile saved successfully!' : '✓ تم حفظ الملف الشخصي بنجاح!';
+                    msgEl.className = 'save-msg success';
+                }
+            } catch(e) {
+                msgEl.textContent = '✗ ' + (e.error || e.message || (isEn ? 'Failed to save' : 'تعذر الحفظ'));
+                msgEl.className = 'save-msg error';
+            }
+            setTimeout(() => { msgEl.textContent = ''; msgEl.className = 'save-msg'; }, 4000);
+        },
+        
+        async changePassword() {
+            const curEl = document.getElementById('currentPassword');
+            const newEl = document.getElementById('newPassword');
+            const confEl = document.getElementById('confirmPassword');
+            const msgEl = document.getElementById('passwordChangeMsg');
+            if (!curEl || !newEl || !confEl || !msgEl) return;
+            
+            const current_password = curEl.value;
+            const new_password = newEl.value;
+            const confirm = confEl.value;
+            const isEn = TalentMetric.Lang.current === 'en';
+            
+            if (!current_password || !new_password || !confirm) {
+                msgEl.textContent = isEn ? '✗ Please fill all fields' : '✗ يرجى ملء جميع الحقول';
+                msgEl.className = 'save-msg error';
+                return;
+            }
+            
+            if (new_password !== confirm) {
+                msgEl.textContent = isEn ? '✗ Passwords do not match' : '✗ كلمات المرور غير متطابقة';
+                msgEl.className = 'save-msg error';
+                return;
+            }
+            
+            msgEl.textContent = isEn ? 'Updating...' : 'جاري التحديث...';
+            msgEl.className = 'save-msg';
+            
+            try {
+                const result = await TalentMetric.api('/api/auth/profile', {
+                    method: 'PUT',
+                    body: JSON.stringify({ current_password, new_password })
+                });
+                
+                if (result.ok) {
+                    msgEl.textContent = isEn ? '✓ Password changed successfully!' : '✓ تم تغيير كلمة المرور بنجاح!';
+                    msgEl.className = 'save-msg success';
+                    curEl.value = '';
+                    newEl.value = '';
+                    confEl.value = '';
+                }
+            } catch(e) {
+                msgEl.textContent = '✗ ' + (e.error || e.message || (isEn ? 'Failed to change password' : 'تعذر تغيير كلمة المرور'));
+                msgEl.className = 'save-msg error';
+            }
+            setTimeout(() => { msgEl.textContent = ''; msgEl.className = 'save-msg'; }, 4000);
+        }
+    },
+
+    /* ═══════ ADMIN MODULE ═══════ */
     Admin: {
         token: null,
         init() {
@@ -843,6 +1487,8 @@ const TalentMetric = {
             
             document.getElementById('fetchOllamaModels')?.addEventListener('click', () => this.fetchLocalModels('ollama'));
             document.getElementById('fetchLMStudioModels')?.addEventListener('click', () => this.fetchLocalModels('lmstudio'));
+            document.getElementById('fetchOpenRouterModels')?.addEventListener('click', () => this.fetchOpenRouterModels());
+            document.getElementById('changeAdminPasswordBtn')?.addEventListener('click', () => this.changePassword());
 
             // HF + generic model chips — set provider default model input
             document.addEventListener('click', e => {
@@ -875,11 +1521,84 @@ const TalentMetric = {
                     if (list.length === 0) {
                         chips.innerHTML = '<span style="color:var(--text-muted);font-size:.8rem">No models found. Is the server running?</span>';
                     } else {
-                        chips.innerHTML = list.map(m => `<button class="model-chip" data-model="${m.name}" data-provider="${provider}">${m.name}</button>`).join('');
+                        // Fix for array chip bug mapping simple strings
+                        chips.innerHTML = list.map(m => {
+                            const name = typeof m === 'object' ? (m.name || m.id || '') : m;
+                            return `<button class="model-chip" data-model="${name}" data-provider="${provider}">${name}</button>`;
+                        }).join('');
                     }
                     container.classList.add('visible');
                 }
             } catch(e) { console.error(e); }
+        },
+        async fetchOpenRouterModels() {
+            const btn = document.getElementById('fetchOpenRouterModels');
+            if (!btn) return;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/api/admin/openrouter-models', { headers: { 'Authorization': 'Bearer ' + this.token } });
+                if (resp.status === 401) { sessionStorage.removeItem('talentmetric_admin_token'); window.location.href = '/login'; return; }
+                const data = await resp.json();
+                const list = data.models || [];
+                const chips = document.getElementById('openrouterModelsChips');
+                const container = document.getElementById('openrouterModelsList');
+                if (chips && container) {
+                    if (list.length === 0) {
+                        chips.innerHTML = '<span style="color:var(--text-muted);font-size:.8rem">No models found or error. Check key.</span>';
+                    } else {
+                        chips.innerHTML = list.map(m => {
+                            const icon = m.vision ? '👁 ' : '';
+                            const vClass = m.vision ? ' vision-chip' : '';
+                            return `<button class="model-chip${vClass}" data-model="${m.id}" data-provider="openrouter" title="Context: ${m.context || 'unknown'}">${icon}${m.name || m.id}</button>`;
+                        }).join('');
+                    }
+                    container.classList.add('visible');
+                }
+            } catch(e) {
+                console.error(e);
+                TalentMetric.toast('Failed to fetch OpenRouter models', 'error');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        },
+        async changePassword() {
+            const curInp = document.getElementById('adminCurrentPassword');
+            const newInp = document.getElementById('adminNewPassword');
+            const msgEl = document.getElementById('adminPasswordMsg');
+            if (!curInp || !newInp || !msgEl) return;
+            
+            const curPass = curInp.value;
+            const newPass = newInp.value;
+            if (!curPass || !newPass) {
+                msgEl.textContent = 'Please fill all fields.';
+                msgEl.style.color = 'var(--danger)';
+                return;
+            }
+            try {
+                const resp = await fetch('/api/admin/change-password', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+                    body: JSON.stringify({ current_password: curPass, new_password: newPass })
+                });
+                if (resp.status === 401) { sessionStorage.removeItem('talentmetric_admin_token'); window.location.href = '/login'; return; }
+                const result = await resp.json();
+                if (resp.ok && result.ok) {
+                    msgEl.textContent = '✓ Password updated successfully!';
+                    msgEl.style.color = 'var(--success)';
+                    curInp.value = '';
+                    newInp.value = '';
+                } else {
+                    msgEl.textContent = '✗ ' + (result.error || 'Failed');
+                    msgEl.style.color = 'var(--danger)';
+                }
+            } catch(e) {
+                msgEl.textContent = '✗ Error: ' + e.message;
+                msgEl.style.color = 'var(--danger)';
+            }
+            setTimeout(() => { msgEl.textContent = ''; }, 4000);
         },
         async loadSettings() {
             try {
@@ -901,41 +1620,35 @@ const TalentMetric = {
 
             const features = ['default', 'skills', 'chat_interview', 'video_interview', 'resume', 'career'];
             const featureLabels = {
-                'default': 'Default (General)', 'skills': 'Skills Assessment', 
-                'chat_interview': 'Chat Interview', 'video_interview': 'Video Interview', 
+                'default': 'Default (General)', 'skills': 'Skills Assessment',
+                'chat_interview': 'Chat Interview', 'video_interview': 'Video Interview',
                 'resume': 'Resume Review', 'career': 'Career Path'
             };
+            const featureIcons = {
+                'default': 'fa-layer-group', 'skills': 'fa-chart-bar',
+                'chat_interview': 'fa-comments', 'video_interview': 'fa-video',
+                'resume': 'fa-file-lines', 'career': 'fa-road'
+            };
             const providers = ['openrouter', 'openai', 'huggingface', 'ollama', 'lmstudio'];
-            
+            const providerLabels = {
+                'openrouter': '☁ OpenRouter', 'openai': '☁ OpenAI',
+                'huggingface': '☁ HuggingFace', 'ollama': '🖥 Ollama', 'lmstudio': '🖥 LM Studio'
+            };
+
             // Build Main Routing Table
             const tbody = document.getElementById('adminRoutingRows');
             if(tbody) {
                 tbody.innerHTML = features.map(f => {
                     const curOverride = data.routing_overrides?.[f] || {};
-                    const options = `<option value="">-- Active Provider --</option>` + providers.map(p => `<option value="${p}" ${curOverride.provider===p?'selected':''}>${p}</option>`).join('');
+                    const options = `<option value="">— Active Provider —</option>` + providers.map(p => `<option value="${p}" ${curOverride.provider===p?'selected':''}>${providerLabels[p]||p}</option>`).join('');
                     return `
                         <tr>
-                            <td><span class="feature-label">${featureLabels[f]}</span></td>
+                            <td><span class="feature-label"><i class="fas ${featureIcons[f]||'fa-cog'}"></i>${featureLabels[f]}</span></td>
                             <td><select class="routing-provider-select" data-feature="${f}">${options}</select></td>
                             <td><input type="text" class="routing-model-input" list="commonModelsList" data-feature="${f}" value="${curOverride.model||''}" placeholder="Inherit default"></td>
                         </tr>
                     `;
                 }).join('');
-            }
-            
-            if(!document.getElementById('commonModelsList')) {
-                const dl = document.createElement('datalist');
-                dl.id = 'commonModelsList';
-                dl.innerHTML = `
-                    <option value="gpt-4o-mini">
-                    <option value="gpt-4o">
-                    <option value="claude-3-5-sonnet">
-                    <option value="openai/gpt-4o-mini">
-                    <option value="anthropic/claude-3-haiku">
-                    <option value="llama3">
-                    <option value="llama-3-8b-instruct">
-                `;
-                document.body.appendChild(dl);
             }
 
             // Provider fields
@@ -950,13 +1663,11 @@ const TalentMetric = {
                 });
                 const check = document.querySelector(`.admin-provider-check[data-provider="${p}"]`);
                 if (check) check.checked = prov.enabled !== false;
-                
-
             });
 
             const sel = document.getElementById('adminActiveProvider');
             const current = sel.value;
-            sel.innerHTML = providers.map(p => `<option value="${p}">${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('');
+            sel.innerHTML = providers.map(p => `<option value="${p}">${providerLabels[p]||p}</option>`).join('');
             sel.value = current || data.active_provider || 'openrouter';
         },
         collectSettings() {
@@ -1023,12 +1734,21 @@ const TalentMetric = {
         },
         async testProvider(name) {
             const el = document.getElementById('test' + name.charAt(0).toUpperCase() + name.slice(1));
-            if (el) { el.textContent = 'Testing...'; el.style.color = 'var(--text-muted)'; }
+            if (el) { el.textContent = 'Testing…'; el.style.color = 'var(--text-muted)'; }
+
+            const keyInp  = document.querySelector(`.admin-provider-key[data-provider="${name}"]`);
+            const urlInp  = document.querySelector(`.admin-provider-input[data-provider="${name}"][data-field="base_url"]`);
+            const modelInp = document.querySelector(`.admin-provider-input[data-provider="${name}"][data-field="model"]`);
+            const payload = { provider: name };
+            if (keyInp   && keyInp.value)   payload.api_key  = keyInp.value;
+            if (urlInp   && urlInp.value)   payload.base_url = urlInp.value;
+            if (modelInp && modelInp.value) payload.model    = modelInp.value;
+
             try {
                 const resp = await fetch('/api/admin/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
-                    body: JSON.stringify({ provider: name })
+                    body: JSON.stringify(payload)
                 });
                 if (resp.status === 401) { sessionStorage.removeItem('talentmetric_admin_token'); window.location.href = '/login'; return; }
                 const data = await resp.json();
@@ -1079,13 +1799,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load site configuration globally
     TalentMetric.loadSiteConfig();
 
+    // Initialize bilingual layout engine
+    TalentMetric.Lang.init();
+
     // Navbar scroll effect
     window.addEventListener('scroll', () => {
         const nav = document.getElementById('navbar');
         if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
     });
 
-    // Mobile menu
+    // Mobile menu toggle
     const mobileBtn = document.getElementById('mobileMenuBtn');
     if (mobileBtn) {
         mobileBtn.addEventListener('click', () => {
@@ -1093,7 +1816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Logout
+    // Standardized Global Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
@@ -1111,16 +1834,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const timer = setInterval(() => {
             current += increment;
             if (current >= target) { current = target; clearInterval(timer); }
-            el.textContent = Math.floor(current).toLocaleString('ar-EG');
+            el.textContent = Math.floor(current).toLocaleString(TalentMetric.Lang.current === 'en' ? 'en-US' : 'ar-EG');
         }, 30);
     });
 
-    // Page-specific init
+    // Page-specific initialization routing
     if (path === '/login') TalentMetric.Auth.init();
     else if (path === '/dashboard') TalentMetric.Dashboard.init();
     else if (path === '/skills') TalentMetric.Skills.init();
     else if (path === '/interview') TalentMetric.Interview.init();
     else if (path === '/resume') TalentMetric.Resume.init();
     else if (path === '/career') TalentMetric.Career.init();
+    else if (path === '/history') TalentMetric.History.init();
+    else if (path === '/profile') TalentMetric.Profile.init();
     else if (path === '/admin') TalentMetric.Admin.init();
 });

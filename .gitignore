@@ -1,20 +1,22 @@
-# Python Caches
+# Talent Metric — Git ignore
+# Database (contains all user data)
+talent_metric.db
+talent_metric.db-shm
+talent_metric.db-wal
+
+# Admin settings (contains API keys)
+admin_settings.json
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-
-# Virtual Environments
+.env
+.venv
 venv/
 env/
-.venv/
-.env
 
-# Application Secrets & Local Data
-admin_settings.json
-
-# PDF Exports / Temporary Files
-*.pdf
-*.log
+# OS
 .DS_Store
+Thumbs.db

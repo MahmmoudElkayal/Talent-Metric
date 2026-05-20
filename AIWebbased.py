@@ -1,23 +1,33 @@
 """
 Talent Metric — AI-Driven Career Development Platform
-Flask Backend Server with Multi-Provider AI Support
+Flask Backend v2.0
+  - SQLite persistence (talent_metric.db)
+  - PBKDF2 / bcrypt password hashing
+  - 24h user tokens, 2h admin tokens
+  - In-process rate limiting
+  - Streaming SSE interview endpoint
+  - Video frame (base64 JPEG) injected into vision models
+  - Interview history saved to DB
+  - Language toggle (ar / en) per request
+  - Admin password change from UI
+  - OpenRouter live model fetch
+  - Dynamic skills list
+  - Deep-merge settings
+  - All security / bug fixes
 """
 
-import os
-import io
-import re
-import uuid
-import json
-import hashlib
-import urllib.request
-from datetime import datetime
+import os, io, json, hashlib, secrets, sqlite3, time, threading
+from datetime import datetime, timedelta
+from contextlib import contextmanager
 from functools import wraps
+from collections import defaultdict
 
 from flask import (
     Flask, request, jsonify, send_file,
-    send_from_directory, session, make_response
+    send_from_directory, Response, stream_with_context
 )
 
+# ── Optional dependencies ──────────────────────────────────────────────────────
 try:
     import requests as http_requests
     HAS_REQUESTS = True
@@ -40,940 +50,1573 @@ try:
 except ImportError:
     HAS_REPORTLAB = False
 
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    HAS_ARABIC_RESHAPE = True
+except ImportError:
+    HAS_ARABIC_RESHAPE = False
+
+# ── App setup ──────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder=".", static_url_path="/static")
 app.secret_key = os.environ.get("FLASK_SECRET", "talent_metric_secret_key_2026")
 
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "admin_settings.json")
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+DB_FILE      = os.path.join(BASE_DIR, "talent_metric.db")
+SETTINGS_FILE = os.path.join(BASE_DIR, "admin_settings.json")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+DEBUG_MODE   = os.environ.get("DEBUG", "0") == "1"
 
+# ── Settings ───────────────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
     "active_provider": "openrouter",
     "fallback_order": ["openrouter", "openai", "huggingface", "ollama", "lmstudio"],
+    "routing_overrides": {},
     "providers": {
         "openrouter": {
-            "enabled": True,
-            "api_key": "",
+            "enabled": True, "api_key": "",
             "base_url": "https://openrouter.ai/api/v1",
-            "models": {
-                "default": "openai/gpt-4o-mini",
-                "skills": "openai/gpt-4o-mini",
-                "chat_interview": "openai/gpt-4o-mini",
-                "video_interview": "openai/gpt-4o-mini",
-                "resume": "openai/gpt-4o-mini",
-                "career": "openai/gpt-4o-mini"
-            }
+            "model": "openai/gpt-4o-mini"
         },
         "openai": {
-            "enabled": False,
-            "api_key": "",
+            "enabled": False, "api_key": "",
             "base_url": "https://api.openai.com/v1",
-            "models": {
-                "default": "gpt-4o-mini",
-                "skills": "gpt-4o-mini",
-                "chat_interview": "gpt-4o-mini",
-                "video_interview": "gpt-4o-mini",
-                "resume": "gpt-4o-mini",
-                "career": "gpt-4o-mini"
-            }
+            "model": "gpt-4o-mini"
         },
         "huggingface": {
-            "enabled": False,
-            "api_key": "",
+            "enabled": False, "api_key": "",
             "model": "mistralai/Mistral-7B-Instruct-v0.3"
         },
         "ollama": {
-            "enabled": True,
-            "base_url": "http://localhost:11434",
-            "model": "llama3"
+            "enabled": True, "base_url": "http://localhost:11434", "model": "llama3"
         },
         "lmstudio": {
-            "enabled": True,
-            "base_url": "http://localhost:1234",
-            "model": "local-model"
+            "enabled": True, "base_url": "http://localhost:1234", "model": "local-model"
         }
     },
     "site": {
         "app_name": "Talent Metric",
-        "default_target_role": "\u0645\u0637\u0648\u0631 \u0628\u0631\u0645\u062c\u064a\u0627\u062a",
+        "default_target_role": "مطور برمجيات",
+        "language": "ar",
         "interview_fields": [
-            "\u062a\u0643\u0646\u0648\u0644\u0648\u062c\u064a\u0627 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a",
-            "\u0627\u0644\u0647\u0646\u062f\u0633\u0629", "\u0627\u0644\u062a\u0633\u0648\u064a\u0642",
-            "\u0627\u0644\u0645\u0627\u0644\u064a\u0629", "\u0627\u0644\u0645\u0648\u0627\u0631\u062f \u0627\u0644\u0628\u0634\u0631\u064a\u0629",
-            "\u0627\u0644\u062a\u0635\u0645\u064a\u0645", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a",
-            "\u0627\u0644\u0625\u062f\u0627\u0631\u0629", "\u0623\u062e\u0631\u0649"
+            "تكنولوجيا المعلومات", "الهندسة", "التسويق",
+            "المالية", "الموارد البشرية", "التصميم",
+            "المبيعات", "الإدارة", "أخرى"
+        ],
+        "skills_list": [
+            "Python", "JavaScript", "HTML/CSS", "React", "Node.js",
+            "SQL", "Java", "C#", "تحليل البيانات",
+            "Machine Learning", "Power BI", "Excel متقدم", "Deep Learning",
+            "التواصل", "القيادة", "إدارة الوقت", "العمل الجماعي",
+            "حل المشكلات", "التفكير النقدي",
+            "Git", "Docker", "AWS", "Agile/Scrum", "Linux", "Figma"
         ],
         "max_activity_items": 20
     }
 }
 
 
-def load_settings():
+def deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base without losing nested defaults."""
+    result = base.copy()
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = deep_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
+
+
+def load_settings() -> dict:
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-            merged = DEFAULT_SETTINGS.copy()
-            merged.update(saved)
-            return merged
+            return deep_merge(DEFAULT_SETTINGS, saved)
         except (json.JSONDecodeError, OSError):
             pass
     return DEFAULT_SETTINGS.copy()
 
 
-def save_settings(data):
+def save_settings(data: dict):
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-# ---------------------------------------------------------------------------
-# AIClient — Multi-Provider AI Abstraction
-# ---------------------------------------------------------------------------
+# ── Database ───────────────────────────────────────────────────────────────────
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def init_db():
+    with get_db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                email       TEXT PRIMARY KEY,
+                name        TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at  TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                token       TEXT PRIMARY KEY,
+                email       TEXT NOT NULL,
+                expires_at  TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS admin_tokens (
+                token       TEXT PRIMARY KEY,
+                expires_at  TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS user_stats (
+                email       TEXT PRIMARY KEY,
+                assessments INTEGER DEFAULT 0,
+                interviews  INTEGER DEFAULT 0,
+                resumes     INTEGER DEFAULT 0,
+                careers     INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS activity_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                email       TEXT NOT NULL,
+                type        TEXT,
+                title       TEXT,
+                created_at  TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS interview_sessions (
+                session_id     TEXT PRIMARY KEY,
+                email          TEXT,
+                role           TEXT,
+                field          TEXT,
+                mode           TEXT,
+                feature        TEXT,
+                lang           TEXT DEFAULT 'ar',
+                messages       TEXT DEFAULT '[]',
+                scores         TEXT DEFAULT '[]',
+                question_count INTEGER DEFAULT 0,
+                started_at     TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS interview_history (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                email         TEXT NOT NULL,
+                role          TEXT,
+                field         TEXT,
+                mode          TEXT,
+                overall_score REAL,
+                summary       TEXT,
+                strengths     TEXT DEFAULT '[]',
+                improvements  TEXT DEFAULT '[]',
+                tips          TEXT DEFAULT '[]',
+                created_at    TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_email  ON sessions(email);
+            CREATE INDEX IF NOT EXISTS idx_sessions_exp    ON sessions(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_activity_email  ON activity_log(email);
+            CREATE INDEX IF NOT EXISTS idx_history_email   ON interview_history(email);
+        """)
+
+
+# ── Password hashing ───────────────────────────────────────────────────────────
+def hash_password(password: str) -> str:
+    """Hash with PBKDF2-SHA256 (310k rounds). Falls back gracefully."""
+    try:
+        import bcrypt
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt(12)).decode()
+    except ImportError:
+        pass
+    salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 310_000)
+    return f"pbkdf2:{salt}:{h.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify against bcrypt, pbkdf2, or legacy sha256."""
+    try:
+        import bcrypt
+        if stored_hash.startswith("$2"):
+            return bcrypt.checkpw(password.encode(), stored_hash.encode())
+    except ImportError:
+        pass
+    if stored_hash.startswith("pbkdf2:"):
+        parts = stored_hash.split(":", 2)
+        if len(parts) == 3:
+            _, salt, h = parts
+            expected = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 310_000)
+            return secrets.compare_digest(expected.hex(), h)
+    # Legacy SHA-256
+    return secrets.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored_hash)
+
+
+# ── Rate limiting ──────────────────────────────────────────────────────────────
+_rate_data: dict = defaultdict(list)
+_rate_lock = threading.Lock()
+
+def check_rate_limit(key: str, max_calls: int = 15, window: int = 60) -> bool:
+    now = time.time()
+    with _rate_lock:
+        calls = [t for t in _rate_data[key] if now - t < window]
+        if len(calls) >= max_calls:
+            _rate_data[key] = calls
+            return False
+        calls.append(now)
+        _rate_data[key] = calls
+        return True
+
+
+def rate_limited(max_calls=15, window=60):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            ip = request.remote_addr or "unknown"
+            if not check_rate_limit(f"ai:{ip}", max_calls, window):
+                return jsonify({"error": "تجاوزت الحد المسموح به. حاول مرة أخرى بعد دقيقة."}), 429
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# ── DB helpers ─────────────────────────────────────────────────────────────────
+SESSION_TTL_HOURS  = 24
+ADMIN_TTL_HOURS    = 2
+
+
+def create_user_token(email: str) -> str:
+    token = secrets.token_urlsafe(40)
+    exp = (datetime.utcnow() + timedelta(hours=SESSION_TTL_HOURS)).isoformat()
+    with get_db() as conn:
+        # Clean expired tokens first
+        conn.execute("DELETE FROM sessions WHERE expires_at < datetime('now')")
+        conn.execute("INSERT INTO sessions (token, email, expires_at) VALUES (?,?,?)",
+                     (token, email, exp))
+    return token
+
+
+def get_user_by_token(token: str):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT u.* FROM sessions s JOIN users u ON s.email=u.email "
+            "WHERE s.token=? AND s.expires_at > datetime('now')", (token,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def create_admin_token() -> str:
+    token = secrets.token_urlsafe(40)
+    exp = (datetime.utcnow() + timedelta(hours=ADMIN_TTL_HOURS)).isoformat()
+    with get_db() as conn:
+        conn.execute("DELETE FROM admin_tokens WHERE expires_at < datetime('now')")
+        conn.execute("INSERT INTO admin_tokens (token, expires_at) VALUES (?,?)", (token, exp))
+    return token
+
+
+def verify_admin_token(token: str) -> bool:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM admin_tokens WHERE token=? AND expires_at > datetime('now')", (token,)
+        ).fetchone()
+    return row is not None
+
+
+def ensure_stats(email: str):
+    with get_db() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO user_stats (email) VALUES (?)", (email,)
+        )
+
+
+def add_activity(email: str, kind: str, title: str):
+    settings = load_settings()
+    max_items = settings.get("site", {}).get("max_activity_items", 20)
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO activity_log (email, type, title) VALUES (?,?,?)",
+            (email, kind, title)
+        )
+        # Trim old entries
+        conn.execute(
+            """DELETE FROM activity_log WHERE id IN (
+               SELECT id FROM activity_log WHERE email=?
+               ORDER BY id DESC LIMIT -1 OFFSET ?)""",
+            (email, max_items)
+        )
+
+
+def bump_stat(email: str, column: str):
+    ensure_stats(email)
+    with get_db() as conn:
+        conn.execute(f"UPDATE user_stats SET {column}={column}+1 WHERE email=?", (email,))
+
+
+# ── Auth decorators ────────────────────────────────────────────────────────────
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"error": "غير مصرح"}), 401
+        user = get_user_by_token(auth[7:])
+        if not user:
+            return jsonify({"error": "انتهت الجلسة، يرجى تسجيل الدخول"}), 401
+        return f(user, *args, **kwargs)
+    return wrapper
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        token = auth[7:] if auth.startswith("Bearer ") else ""
+        if not verify_admin_token(token):
+            return jsonify({"error": "صلاحية مسؤول مطلوبة"}), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+# ── Language helpers ───────────────────────────────────────────────────────────
+LANG_INSTRUCTION = {
+    "ar": "يجب أن تكتب ردك كاملاً باللغة العربية الفصحى.",
+    "en": "You must write your entire response in English only."
+}
+
+def get_lang(data: dict = None) -> str:
+    """Extract language preference from request body, defaulting to site setting."""
+    if data and "lang" in data:
+        return data["lang"] if data["lang"] in ("ar", "en") else "ar"
+    try:
+        settings = load_settings()
+        return settings.get("site", {}).get("language", "ar")
+    except Exception:
+        return "ar"
+
+
+# ── AI Client ──────────────────────────────────────────────────────────────────
 class AIClient:
-    def __init__(self, settings):
+    def __init__(self, settings: dict):
         self.settings = settings
 
-    def get_model_for_feature(self, provider_name, feature="default"):
-        # Routing override takes highest priority
-        if getattr(self, '_model_override', None):
-            return self._model_override
-        prov = self.settings.get("providers", {}).get(provider_name, {})
-        if provider_name == "huggingface":
-            return prov.get("model", DEFAULT_SETTINGS["providers"]["huggingface"]["model"])
-        models = prov.get("models", {})
-        return models.get(feature, models.get("default", "gpt-4o-mini"))
+    def _get_provider_cfg(self, provider_name: str) -> dict:
+        return dict(self.settings.get("providers", {}).get(provider_name, {}))
 
-    def chat(self, messages, feature="default", max_tokens=1024,
-             override_provider=None, override_model=None):
-        """Route to the correct provider. Respects routing_overrides set in admin."""
-        routing = self.settings.get("routing_overrides", {})
-        feat_override = routing.get(feature, {})
+    def _get_model(self, provider_name: str, feature: str = "default") -> str:
+        # Routing override
+        overrides = self.settings.get("routing_overrides", {})
+        feat_override = overrides.get(feature, {})
+        if feat_override.get("provider") == provider_name and feat_override.get("model"):
+            return feat_override["model"]
+        cfg = self._get_provider_cfg(provider_name)
+        return cfg.get("model", "gpt-4o-mini")
 
-        # Determine provider: explicit override > routing table > active provider
-        active = override_provider or feat_override.get("provider") or self.settings.get("active_provider", "openrouter")
-        fallback = self.settings.get("fallback_order", [])
-
-        # Determine model override from routing table
-        self._model_override = override_model or feat_override.get("model")
-
-        tried = []
-        for prov_name in [active] + [p for p in fallback if p != active]:
-            if prov_name in tried:
-                continue
-            tried.append(prov_name)
-            cfg = self.settings.get("providers", {}).get(prov_name)
-            if not cfg or not cfg.get("enabled"):
-                continue
-
-            try:
-                result = self._call_provider(prov_name, cfg, messages, feature, max_tokens)
-                if result:
-                    self._model_override = None
-                    return result
-            except Exception as e:
-                print(f"[{prov_name}] Error: {e}")
-        self._model_override = None
-        return None
-
-    def _call_provider(self, name, cfg, messages, feature, max_tokens):
-        if name in ("openrouter", "openai"):
-            return self._call_openai_compat(name, cfg, messages, feature, max_tokens)
-        elif name == "huggingface":
-            return self._call_huggingface(cfg, messages, max_tokens)
-        elif name in ("ollama", "lmstudio"):
-            return self._call_local(name, cfg, messages, feature, max_tokens)
-        return None
-
-    def _call_openai_compat(self, name, cfg, messages, feature, max_tokens):
-        api_key = cfg.get("api_key", "")
-        # Both OpenAI and OpenRouter require an API key
-        if not api_key:
-            return None
-        if not HAS_REQUESTS:
-            return None
-        model = self.get_model_for_feature(name, feature)
-        base = cfg.get("base_url", "").rstrip("/")
-        headers = {
+    # ── OpenAI-compatible call ────────────────────────────────────────────────
+    def _call_openai_compat(self, cfg: dict, messages: list,
+                             model: str, max_tokens: int,
+                             extra_headers: dict = None) -> str | None:
+        api_key  = cfg.get("api_key", "")
+        base_url = cfg.get("base_url", "https://api.openai.com/v1").rstrip("/")
+        headers  = {
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
         }
-        if name == "openrouter":
-            headers["HTTP-Referer"] = "http://localhost:5000"
-            headers["X-Title"] = "Talent Metric"
+        if extra_headers:
+            headers.update(extra_headers)
         payload = {
-            "model": model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": 0.7
+            "model": model, "messages": messages,
+            "max_tokens": max_tokens, "temperature": 0.7
         }
-        resp = http_requests.post(
-            f"{base}/chat/completions",
-            headers=headers, json=payload, timeout=60
+        if HAS_REQUESTS:
+            resp = http_requests.post(
+                f"{base_url}/chat/completions",
+                headers=headers, json=payload, timeout=90
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        import urllib.request as urlreq
+        req = urlreq.Request(
+            f"{base_url}/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers=headers, method="POST"
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        with urlreq.urlopen(req, timeout=90) as r:
+            return json.loads(r.read())["choices"][0]["message"]["content"]
 
-    def _call_huggingface(self, cfg, messages, max_tokens):
-        api_key = cfg.get("api_key") or os.environ.get("HF_API_KEY")
-        if not api_key:
-            return None
+    def _stream_openai_compat(self, cfg: dict, messages: list,
+                               model: str, max_tokens: int,
+                               extra_headers: dict = None):
+        """Yield text chunks from an OpenAI-compat streaming endpoint."""
+        if not HAS_REQUESTS:
+            # Non-streaming fallback
+            yield self._call_openai_compat(cfg, messages, model, max_tokens, extra_headers) or ""
+            return
+        api_key  = cfg.get("api_key", "")
+        base_url = cfg.get("base_url", "").rstrip("/")
+        headers  = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+        payload = {
+            "model": model, "messages": messages,
+            "max_tokens": max_tokens, "temperature": 0.7, "stream": True
+        }
+        with http_requests.post(
+            f"{base_url}/chat/completions",
+            headers=headers, json=payload, stream=True, timeout=90
+        ) as resp:
+            resp.raise_for_status()
+            for raw in resp.iter_lines():
+                if not raw:
+                    continue
+                line = raw.decode("utf-8")
+                if line.startswith("data: "):
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        delta = data["choices"][0].get("delta", {})
+                        chunk = delta.get("content", "")
+                        if chunk:
+                            yield chunk
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        pass
+
+    def _call_ollama(self, cfg: dict, messages: list, model: str, max_tokens: int) -> str | None:
+        base_url = cfg.get("base_url", "http://localhost:11434").rstrip("/")
+        if HAS_REQUESTS:
+            try:
+                resp = http_requests.post(
+                    f"{base_url}/api/chat",
+                    json={"model": model, "messages": messages, "stream": False},
+                    timeout=120
+                )
+                resp.raise_for_status()
+                return resp.json()["message"]["content"]
+            except Exception:
+                pass
+            # Fallback to OpenAI-compat
+            return self._call_openai_compat(
+                {**cfg, "api_key": "ollama"},
+                messages, model, max_tokens
+            )
+        return None
+
+    def _stream_ollama(self, cfg: dict, messages: list, model: str, max_tokens: int):
+        """Yield chunks from Ollama streaming."""
+        if not HAS_REQUESTS:
+            yield self._call_ollama(cfg, messages, model, max_tokens) or ""
+            return
+        base_url = cfg.get("base_url", "http://localhost:11434").rstrip("/")
+        try:
+            with http_requests.post(
+                f"{base_url}/api/chat",
+                json={"model": model, "messages": messages, "stream": True},
+                stream=True, timeout=120
+            ) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            chunk = data.get("message", {}).get("content", "")
+                            if chunk:
+                                yield chunk
+                            if data.get("done"):
+                                break
+                        except json.JSONDecodeError:
+                            pass
+        except Exception:
+            # Fallback to OpenAI-compat stream
+            yield from self._stream_openai_compat(
+                {**cfg, "api_key": "ollama"},
+                messages, model, max_tokens
+            )
+
+    def _call_huggingface(self, cfg: dict, messages: list, model: str, max_tokens: int) -> str | None:
         if not HAS_HF:
             return None
-        client = InferenceClient(
-            model=cfg.get("model", "mistralai/Mistral-7B-Instruct-v0.3"),
-            token=api_key
-        )
-        resp = client.chat_completion(
-            messages=messages, max_tokens=max_tokens, temperature=0.7
+        api_key = cfg.get("api_key", "")
+        client  = InferenceClient(api_key=api_key)
+        resp    = client.chat_completion(
+            model=model, messages=messages, max_tokens=max_tokens
         )
         return resp.choices[0].message.content
 
-    def _call_local(self, name, cfg, messages, feature, max_tokens):
-        """
-        Support both Ollama-native API and OpenAI-compatible endpoints.
-        - Ollama: tries /api/chat (native) first, then /v1/chat/completions
-        - LM Studio: uses /v1/chat/completions (OpenAI-compat)
-        """
-        if not HAS_REQUESTS:
-            return None
-        model = self.get_model_for_feature(name, feature)
-        if not model:
-            print(f"[{name}] No model configured. Set default model in Admin panel.")
-            return None
-        base = cfg.get("base_url", "").rstrip("/")
-        if not base:
-            print(f"[{name}] No base_url configured.")
-            return None
-
-        if name == "ollama":
-            # Try Ollama's native /api/chat endpoint first
-            try:
-                payload = {
-                    "model": model,
-                    "messages": messages,
-                    "stream": False,
-                    "options": {"temperature": 0.7, "num_predict": max_tokens}
-                }
-                resp = http_requests.post(
-                    f"{base}/api/chat",
-                    json=payload, timeout=120
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return data["message"]["content"]
-            except Exception as e:
-                print(f"[ollama] native /api/chat failed: {e}, trying /v1/chat/completions")
-
-        # OpenAI-compat fallback (LM Studio + Ollama /v1)
+    def _call_provider(self, provider_name: str, cfg: dict,
+                        messages: list, feature: str, max_tokens: int) -> str | None:
+        model = self._get_model(provider_name, feature)
         try:
-            payload = {
-                "model": model,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": 0.7,
-                "stream": False
-            }
-            resp = http_requests.post(
-                f"{base}/v1/chat/completions",
-                json=payload, timeout=120
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            if provider_name == "openrouter":
+                return self._call_openai_compat(cfg, messages, model, max_tokens, {
+                    "HTTP-Referer": "https://talentmetric.app",
+                    "X-Title": "Talent Metric"
+                })
+            elif provider_name == "openai":
+                return self._call_openai_compat(cfg, messages, model, max_tokens)
+            elif provider_name == "huggingface":
+                return self._call_huggingface(cfg, messages, model, max_tokens)
+            elif provider_name == "ollama":
+                return self._call_ollama(cfg, messages, model, max_tokens)
+            elif provider_name == "lmstudio":
+                return self._call_openai_compat(cfg, messages, model, max_tokens)
         except Exception as e:
-            print(f"[{name}] Connection failed: {e}")
+            print(f"[{provider_name}] Error: {e}")
             return None
 
-    def test_connection(self, provider_name):
-        cfg = self.settings.get("providers", {}).get(provider_name)
+    def _stream_provider(self, provider_name: str, cfg: dict,
+                          messages: list, feature: str, max_tokens: int):
+        model = self._get_model(provider_name, feature)
+        try:
+            if provider_name == "openrouter":
+                yield from self._stream_openai_compat(cfg, messages, model, max_tokens, {
+                    "HTTP-Referer": "https://talentmetric.app",
+                    "X-Title": "Talent Metric"
+                })
+            elif provider_name == "openai":
+                yield from self._stream_openai_compat(cfg, messages, model, max_tokens)
+            elif provider_name == "ollama":
+                yield from self._stream_ollama(cfg, messages, model, max_tokens)
+            elif provider_name == "lmstudio":
+                yield from self._stream_openai_compat(cfg, messages, model, max_tokens)
+            elif provider_name == "huggingface":
+                # HF doesn't support streaming easily; yield full response as single chunk
+                result = self._call_huggingface(cfg, messages, model, max_tokens)
+                if result:
+                    yield result
+        except Exception as e:
+            print(f"[{provider_name}] Stream error: {e}")
+
+    def _get_active_chain(self, feature: str = "default"):
+        overrides  = self.settings.get("routing_overrides", {})
+        feat_prov  = overrides.get(feature, {}).get("provider", "")
+        providers  = self.settings.get("providers", {})
+        if feat_prov and providers.get(feat_prov, {}).get("enabled"):
+            yield feat_prov
+        active = self.settings.get("active_provider", "openrouter")
+        if active != feat_prov and providers.get(active, {}).get("enabled"):
+            yield active
+        for p in self.settings.get("fallback_order", []):
+            if p not in (feat_prov, active) and providers.get(p, {}).get("enabled"):
+                yield p
+
+    def chat(self, messages: list, feature: str = "default", max_tokens: int = 1024) -> str | None:
+        for provider_name in self._get_active_chain(feature):
+            cfg    = self._get_provider_cfg(provider_name)
+            result = self._call_provider(provider_name, cfg, messages, feature, max_tokens)
+            if result:
+                return result
+        return None
+
+    def stream(self, messages: list, feature: str = "default", max_tokens: int = 1024):
+        """Yield text chunks, falling back to next provider on error."""
+        for provider_name in self._get_active_chain(feature):
+            cfg = self._get_provider_cfg(provider_name)
+            chunks = []
+            try:
+                for chunk in self._stream_provider(provider_name, cfg, messages, feature, max_tokens):
+                    chunks.append(chunk)
+                    yield chunk
+                if chunks:
+                    return  # success
+            except Exception as e:
+                print(f"[{provider_name}] Stream failed: {e}")
+
+    def test_connection(self, provider_name: str, live_overrides: dict = None):
+        cfg = dict(self.settings.get("providers", {}).get(provider_name, {}))
+        if live_overrides:
+            cfg.update(live_overrides)
         if not cfg:
             return {"ok": False, "error": "Provider not configured"}
         test_msg = [{"role": "user", "content": "Say 'ok' if you can hear me."}]
         try:
+            model  = cfg.get("model", "gpt-4o-mini")
             result = self._call_provider(provider_name, cfg, test_msg, "default", 50)
             if result:
                 return {"ok": True, "response": result[:200]}
-            return {"ok": False, "error": "No response"}
+            return {"ok": False, "error": "No response — check API key and model name"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
 
-settings_cache = load_settings()
-ai_client = AIClient(settings_cache)
-
-admin_tokens = {}
-
-
-def get_settings():
-    global settings_cache
-    return settings_cache
-
-
-def reload_settings():
-    global settings_cache, ai_client
-    settings_cache = load_settings()
-    ai_client = AIClient(settings_cache)
-
-
-def extract_json(text):
+# ── JSON extractor ─────────────────────────────────────────────────────────────
+def extract_json(text: str):
     if not text:
         return None
-    json_start = text.find("{")
-    json_end = text.rfind("}") + 1
-    if json_start >= 0 and json_end > json_start:
+    # Try code fences first
+    for fence in ["```json", "```"]:
+        if fence in text:
+            parts = text.split(fence)
+            for i in range(1, len(parts), 2):
+                try:
+                    return json.loads(parts[i].strip().rstrip("`"))
+                except json.JSONDecodeError:
+                    pass
+    # Try raw JSON
+    start = text.find("{")
+    end   = text.rfind("}") + 1
+    if start != -1 and end > start:
         try:
-            return json.loads(text[json_start:json_end])
+            return json.loads(text[start:end])
         except json.JSONDecodeError:
             pass
     return None
 
 
-# ---------------------------------------------------------------------------
-# In-Memory Data Stores
-# ---------------------------------------------------------------------------
-users_db = {}
-user_sessions = {}
-interview_sessions = {}
-user_activity = {}
-user_stats = {}
+# ── Global AI client (lazy-init on each request) ───────────────────────────────
+def get_ai_client() -> AIClient:
+    return AIClient(load_settings())
 
 
-def hash_password(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-
-def get_current_user():
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    email = user_sessions.get(token)
-    if email and email in users_db:
-        return users_db[email]
-    return None
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        user = get_current_user()
-        if not user:
-            return jsonify({"error": "يجب تسجيل الدخول أولاً"}), 401
-        return f(user, *args, **kwargs)
-    return decorated
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        if token not in admin_tokens:
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-
-def add_activity(email, act_type, title):
-    max_items = get_settings().get("site", {}).get("max_activity_items", 20)
-    user_activity.setdefault(email, []).insert(0, {
-        "type": act_type, "title": title,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
-    })
-    if len(user_activity[email]) > max_items:
-        user_activity[email] = user_activity[email][:max_items]
-
-
-def ensure_stats(email):
-    if email not in user_stats:
-        user_stats[email] = {"assessments": 0, "interviews": 0, "resumes": 0, "careers": 0}
-
-
-def ai_chat(messages, feature="default", max_tokens=1024):
-    return ai_client.chat(messages, feature=feature, max_tokens=max_tokens)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Page Routes
-# ═══════════════════════════════════════════════════════════════════════════
-@app.route("/")
-def index():
-    return send_from_directory(".", "MainPage.html")
-
-@app.route("/login")
-def login_page():
-    return send_from_directory(".", "login.html")
-
-@app.route("/dashboard")
-def dashboard_page():
-    return send_from_directory(".", "dashboard.html")
-
-@app.route("/skills")
-def skills_page():
-    return send_from_directory(".", "skills.html")
-
-@app.route("/interview")
-def interview_page():
-    return send_from_directory(".", "interview.html")
-
-@app.route("/resume")
-def resume_page():
-    return send_from_directory(".", "resume.html")
-
-@app.route("/career")
-def career_page():
-    return send_from_directory(".", "career.html")
-
-@app.route("/admin")
-def admin_page():
-    return send_from_directory(".", "admin.html")
+# ═══════════════════════════════════════════════════════════════════════════════
+# Page routes
+# ═══════════════════════════════════════════════════════════════════════════════
+PAGES = {
+    "/": "MainPage.html", "/login": "login.html", "/dashboard": "dashboard.html",
+    "/skills": "skills.html", "/interview": "interview.html", "/resume": "resume.html",
+    "/career": "career.html", "/admin": "admin.html", "/history": "history.html",
+    "/profile": "profile.html",
+}
+for _route, _file in PAGES.items():
+    app.add_url_rule(
+        _route, _route.lstrip("/") or "index",
+        lambda f=_file: send_from_directory(BASE_DIR, f)
+    )
 
 @app.route("/AIStyle.css")
 def serve_css():
-    return send_from_directory(".", "AIStyle.css")
+    return send_from_directory(BASE_DIR, "AIStyle.css")
 
 @app.route("/AIScript.js")
 def serve_js():
-    return send_from_directory(".", "AIScript.js")
+    return send_from_directory(BASE_DIR, "AIScript.js")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# AUTH API
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Auth API
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.route("/api/auth/register", methods=["POST"])
-def register():
-    data = request.get_json()
-    name = data.get("name", "").strip()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-
+def api_register():
+    data     = request.json or {}
+    name     = (data.get("name") or "").strip()
+    email    = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
     if not name or not email or not password:
         return jsonify({"error": "جميع الحقول مطلوبة"}), 400
-    if email in users_db:
-        return jsonify({"error": "البريد الإلكتروني مسجل بالفعل"}), 409
-
-    users_db[email] = {
-        "name": name, "email": email,
-        "password_hash": hash_password(password),
-        "created_at": datetime.now().isoformat()
-    }
-    ensure_stats(email)
-    token = str(uuid.uuid4())
-    user_sessions[token] = email
-    add_activity(email, "auth", "تسجيل حساب جديد")
-    return jsonify({"token": token, "user": {"name": name, "email": email}}), 201
+    if len(password) < 6:
+        return jsonify({"error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}), 400
+    with get_db() as conn:
+        existing = conn.execute("SELECT email FROM users WHERE email=?", (email,)).fetchone()
+        if existing:
+            return jsonify({"error": "البريد الإلكتروني مستخدم بالفعل"}), 409
+        conn.execute(
+            "INSERT INTO users (email, name, password_hash) VALUES (?,?,?)",
+            (email, name, hash_password(password))
+        )
+    token = create_user_token(email)
+    return jsonify({"token": token, "user": {"email": email, "name": name}}), 201
 
 
 @app.route("/api/auth/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
+def api_login():
+    data     = request.json or {}
+    email    = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    admin_mode = data.get("admin_mode", False)
 
-    user = users_db.get(email)
-    if not user or user["password_hash"] != hash_password(password):
-        return jsonify({"error": "بيانات الدخول غير صحيحة"}), 401
+    if admin_mode:
+        if password != ADMIN_PASSWORD:
+            return jsonify({"error": "كلمة مرور المسؤول غير صحيحة"}), 401
+        token = create_admin_token()
+        return jsonify({"token": token, "admin": True})
 
-    token = str(uuid.uuid4())
-    user_sessions[token] = email
-    add_activity(email, "auth", "تسجيل دخول")
-    return jsonify({"token": token, "user": {"name": user["name"], "email": email}})
+    with get_db() as conn:
+        user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    if not user or not verify_password(password, user["password_hash"]):
+        return jsonify({"error": "البريد أو كلمة المرور غير صحيحة"}), 401
+    token = create_user_token(email)
+    return jsonify({"token": token, "user": {"email": email, "name": user["name"]}})
 
 
 @app.route("/api/auth/logout", methods=["POST"])
-def logout():
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    user_sessions.pop(token, None)
-    return jsonify({"message": "تم تسجيل الخروج"})
-
-@app.route("/api/auth/me")
-def me():
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "غير مسجل"}), 401
-    return jsonify({"name": user["name"], "email": user["email"]})
+@login_required
+def api_logout(user):
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    with get_db() as conn:
+        conn.execute("DELETE FROM sessions WHERE token=?", (token,))
+    return jsonify({"ok": True})
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# ADMIN API
-# ═══════════════════════════════════════════════════════════════════════════
+@app.route("/api/auth/me", methods=["GET"])
+@login_required
+def api_me(user):
+    return jsonify({"email": user["email"], "name": user["name"]})
+
+
+@app.route("/api/auth/profile", methods=["PUT"])
+@login_required
+def api_update_profile(user):
+    data         = request.json or {}
+    new_name     = (data.get("name") or "").strip()
+    new_email    = (data.get("email") or "").strip().lower()
+    new_password = data.get("new_password") or ""
+    cur_password = data.get("current_password") or ""
+
+    email = user["email"]
+
+    if new_password:
+        if not verify_password(cur_password, user["password_hash"]):
+            return jsonify({"error": "كلمة المرور الحالية غير صحيحة"}), 400
+        if len(new_password) < 6:
+            return jsonify({"error": "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل"}), 400
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE users SET password_hash=? WHERE email=?",
+                (hash_password(new_password), email)
+            )
+
+    if new_name and new_name != user["name"]:
+        with get_db() as conn:
+            conn.execute("UPDATE users SET name=? WHERE email=?", (new_name, email))
+
+    with get_db() as conn:
+        updated = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    return jsonify({"ok": True, "user": {"email": email, "name": updated["name"]}})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Admin API
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.route("/api/admin/login", methods=["POST"])
-def admin_login():
-    data = request.get_json()
-    password = data.get("password", "")
-    if password != ADMIN_PASSWORD:
-        return jsonify({"error": "Wrong password"}), 401
-    token = str(uuid.uuid4())
-    admin_tokens[token] = True
-    return jsonify({"token": token})
+def api_admin_login():
+    data = request.json or {}
+    if data.get("password") != ADMIN_PASSWORD:
+        return jsonify({"error": "كلمة مرور غير صحيحة"}), 401
+    token = create_admin_token()
+    return jsonify({"token": token, "expires_in_hours": ADMIN_TTL_HOURS})
 
 
-@app.route("/api/admin/settings", methods=["GET", "PUT"])
+@app.route("/api/admin/change-password", methods=["PUT"])
 @admin_required
-def admin_settings():
-    if request.method == "GET":
-        return jsonify(get_settings())
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data"}), 400
-    save_settings(data)
-    reload_settings()
-    return jsonify({"ok": True, "message": "Settings saved"})
+def api_admin_change_password():
+    global ADMIN_PASSWORD
+    data = request.json or {}
+    cur  = data.get("current_password", "")
+    new  = data.get("new_password", "")
+    if cur != ADMIN_PASSWORD:
+        return jsonify({"error": "كلمة المرور الحالية غير صحيحة"}), 400
+    if len(new) < 6:
+        return jsonify({"error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}), 400
+    # Persist as env override hint — store in settings
+    settings = load_settings()
+    settings.setdefault("admin", {})["password"] = new
+    save_settings(settings)
+    ADMIN_PASSWORD = new
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/settings", methods=["GET"])
+@admin_required
+def api_admin_get_settings():
+    return jsonify(load_settings())
+
+
+@app.route("/api/admin/settings", methods=["PUT"])
+@admin_required
+def api_admin_save_settings():
+    data = request.json or {}
+    # Remove admin password from settings if stored there previously
+    current = load_settings()
+    merged  = deep_merge(current, data)
+    save_settings(merged)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/admin/test", methods=["POST"])
 @admin_required
-def admin_test():
-    data = request.get_json()
-    provider = data.get("provider", "")
-    return jsonify(ai_client.test_connection(provider))
+def api_admin_test():
+    data          = request.json or {}
+    provider_name = data.get("provider", "openrouter")
+    live_overrides = {}
+    if "api_key"  in data: live_overrides["api_key"]  = data["api_key"]
+    if "base_url" in data: live_overrides["base_url"] = data["base_url"]
+    if "model"    in data: live_overrides["model"]    = data["model"]
+    result = get_ai_client().test_connection(provider_name, live_overrides or None)
+    return jsonify(result)
 
 
 @app.route("/api/admin/local-status", methods=["GET"])
 @admin_required
-def admin_local_status():
-    status = {}
-    for name in ("ollama", "lmstudio"):
-        cfg = get_settings().get("providers", {}).get(name, {})
-        base = cfg.get("base_url", "")
-        reachable = False
+def api_admin_local_status():
+    if not HAS_REQUESTS:
+        return jsonify({"ollama": False, "lmstudio": False})
+    settings = load_settings()
+    def probe(url):
         try:
-            if HAS_REQUESTS:
-                resp = http_requests.get(f"{base}/api/tags", timeout=3)
-                reachable = resp.ok
+            http_requests.get(url, timeout=3)
+            return True
         except Exception:
-            pass
-        status[name] = {"reachable": reachable, "base_url": base, "model": cfg.get("model", "")}
-    return jsonify(status)
-
-
-@app.route("/api/admin/health")
-def admin_health():
+            return False
+    ollama_url   = settings["providers"]["ollama"].get("base_url", "http://localhost:11434")
+    lmstudio_url = settings["providers"]["lmstudio"].get("base_url", "http://localhost:1234")
     return jsonify({
-        "status": "ok",
-        "admin_password_set": bool(os.environ.get("ADMIN_PASSWORD")),
-        "has_requests": HAS_REQUESTS,
-        "has_huggingface": HAS_HF,
-        "has_reportlab": HAS_REPORTLAB,
-        "active_provider": get_settings().get("active_provider", "none")
+        "ollama":   probe(f"{ollama_url}/api/tags"),
+        "lmstudio": probe(f"{lmstudio_url}/v1/models")
     })
 
 
 @app.route("/api/admin/local-models", methods=["GET"])
 @admin_required
-def admin_local_models():
-    """Fetch installed models from Ollama and LM Studio."""
-    result = {"ollama": [], "lmstudio": []}
+def api_admin_local_models():
     if not HAS_REQUESTS:
-        return jsonify(result)
+        return jsonify({"ollama": [], "lmstudio": []})
+    settings     = load_settings()
+    ollama_url   = settings["providers"]["ollama"].get("base_url", "http://localhost:11434")
+    lmstudio_url = settings["providers"]["lmstudio"].get("base_url", "http://localhost:1234")
 
-    # --- Ollama ---
+    ollama_models, lmstudio_models = [], []
     try:
-        cfg = get_settings().get("providers", {}).get("ollama", {})
-        base = cfg.get("base_url", "http://localhost:11434").rstrip("/")
-        resp = http_requests.get(f"{base}/api/tags", timeout=5)
-        if resp.ok:
-            data = resp.json()
-            result["ollama"] = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-    except Exception as e:
-        print(f"[ollama] model fetch error: {e}")
-
-    # --- LM Studio ---
+        r = http_requests.get(f"{ollama_url}/api/tags", timeout=5)
+        ollama_models = [m["name"] for m in r.json().get("models", [])]
+    except Exception:
+        pass
     try:
-        cfg = get_settings().get("providers", {}).get("lmstudio", {})
-        base = cfg.get("base_url", "http://localhost:1234").rstrip("/")
-        resp = http_requests.get(f"{base}/v1/models", timeout=5)
-        if resp.ok:
-            data = resp.json()
-            result["lmstudio"] = [
-                {"name": m.get("id", m.get("name", "unknown"))}
-                for m in data.get("data", [])
-            ]
+        r = http_requests.get(f"{lmstudio_url}/v1/models", timeout=5)
+        lmstudio_models = [m["id"] for m in r.json().get("data", [])]
+    except Exception:
+        pass
+    return jsonify({"ollama": ollama_models, "lmstudio": lmstudio_models})
+
+
+@app.route("/api/admin/openrouter-models", methods=["GET"])
+@admin_required
+def api_admin_openrouter_models():
+    """Fetch live model list from OpenRouter API."""
+    if not HAS_REQUESTS:
+        return jsonify({"error": "requests library not installed"}), 503
+    settings = load_settings()
+    api_key  = settings["providers"]["openrouter"].get("api_key", "")
+    try:
+        resp = http_requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+            timeout=15
+        )
+        resp.raise_for_status()
+        models_raw = resp.json().get("data", [])
+        models = []
+        for m in models_raw:
+            arch = m.get("architecture", {})
+            modalities = arch.get("input_modalities", arch.get("modalities", []))
+            models.append({
+                "id": m["id"],
+                "name": m.get("name", m["id"]),
+                "vision": "image" in modalities,
+                "context": m.get("context_length", 0),
+            })
+        return jsonify({"models": models})
     except Exception as e:
-        print(f"[lmstudio] model fetch error: {e}")
-
-    return jsonify(result)
+        return jsonify({"error": str(e)}), 502
 
 
-@app.route("/api/site/config", methods=["GET"])
-def site_config():
-    return jsonify(get_settings().get("site", {}))
-
-# ═══════════════════════════════════════════════════════════════════════════
-# DASHBOARD API
-# ═══════════════════════════════════════════════════════════════════════════
-@app.route("/api/dashboard/stats")
-@login_required
-def dashboard_stats(user):
-    email = user["email"]
-    ensure_stats(email)
+@app.route("/api/admin/health", methods=["GET"])
+@admin_required
+def api_admin_health():
     return jsonify({
-        "stats": user_stats[email],
-        "activities": user_activity.get(email, [])[:10],
-        "user_name": user["name"]
+        "has_requests":    HAS_REQUESTS,
+        "has_huggingface": HAS_HF,
+        "has_reportlab":   HAS_REPORTLAB,
+        "has_arabic_pdf":  HAS_ARABIC_RESHAPE,
+        "active_provider": load_settings().get("active_provider"),
     })
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# SKILLS ASSESSMENT API
-# ═══════════════════════════════════════════════════════════════════════════
-@app.route("/api/skills/assess", methods=["POST"])
+# ═══════════════════════════════════════════════════════════════════════════════
+# Site config (public)
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/site/config", methods=["GET"])
+def api_site_config():
+    site = load_settings().get("site", {})
+    return jsonify(site)
+
+
+@app.route("/api/site/skills", methods=["GET"])
+def api_site_skills():
+    skills = load_settings().get("site", {}).get("skills_list", [])
+    return jsonify({"skills": skills})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Dashboard API
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/dashboard/stats", methods=["GET"])
 @login_required
-def assess_skills(user):
-    data = request.get_json()
-    skills = data.get("skills", [])
-    target_role = data.get("target_role") or get_settings()["site"]["default_target_role"]
-
-    if not skills:
-        return jsonify({"error": "يرجى إدخال المهارات"}), 400
-
-    skills_text = ", ".join(skills)
-    messages = [
-        {"role": "system", "content": (
-            "أنت خبير موارد بشرية ومستشار مهني محترف. قم بتحليل مهارات المستخدم "
-            "وتحديد الفجوات مقارنة بمتطلبات الوظيفة المستهدفة. "
-            "أجب بصيغة JSON تحتوي على: "
-            '{"analysis": "تحليل عام", "strengths": ["نقطة قوة 1"], '
-            '"gaps": [{"skill": "مهارة", "importance": "عالية/متوسطة/منخفضة", '
-            '"recommendation": "توصية"}], "score": 75, '
-            '"roadmap": ["خطوة 1", "خطوة 2"]}'
-        )},
-        {"role": "user", "content": (
-            f"مهاراتي الحالية: {skills_text}\n"
-            f"الوظيفة المستهدفة: {target_role}\n"
-            "قم بتحليل مهاراتي وتحديد الفجوات وتقديم خارطة طريق."
-        )}
-    ]
-
-    ai_response = ai_chat(messages, feature="skills")
-    result = extract_json(ai_response)
-
-    if not result:
-        result = {
-            "analysis": f"تحليل مهاراتك لوظيفة {target_role}: لديك أساس جيد في {skills_text}. تحتاج لتطوير بعض المهارات الإضافية.",
-            "strengths": skills[:3],
-            "gaps": [
-                {"skill": "إدارة المشاريع", "importance": "عالية", "recommendation": "احصل على شهادة PMP أو Scrum Master"},
-                {"skill": "التواصل المهني", "importance": "متوسطة", "recommendation": "شارك في ورش عمل التواصل"},
-                {"skill": "التحليل البياني", "importance": "عالية", "recommendation": "تعلم أدوات مثل Power BI أو Tableau"}
-            ],
-            "score": 65,
-            "roadmap": [
-                "الشهر 1-2: تعلم أساسيات إدارة المشاريع",
-                "الشهر 3-4: الحصول على شهادة مهنية",
-                "الشهر 5-6: بناء مشاريع تطبيقية"
-            ]
-        }
-
+def api_dashboard_stats(user):
     email = user["email"]
     ensure_stats(email)
-    user_stats[email]["assessments"] += 1
-    add_activity(email, "skills", f"تقييم مهارات لوظيفة {target_role}")
+    with get_db() as conn:
+        stats = conn.execute(
+            "SELECT * FROM user_stats WHERE email=?", (email,)
+        ).fetchone()
+        activity = conn.execute(
+            "SELECT type, title, created_at FROM activity_log WHERE email=? ORDER BY id DESC LIMIT 10",
+            (email,)
+        ).fetchall()
+    return jsonify({
+        "user": {"name": user["name"], "email": email},
+        "stats": {
+            "assessments": stats["assessments"] if stats else 0,
+            "interviews":  stats["interviews"]  if stats else 0,
+            "resumes":     stats["resumes"]     if stats else 0,
+            "careers":     stats["careers"]     if stats else 0,
+        },
+        "activity": [
+            {"type": a["type"], "title": a["title"], "created_at": a["created_at"]}
+            for a in activity
+        ]
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Skills API
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/skills/assess", methods=["POST"])
+@login_required
+@rate_limited(max_calls=10)
+def api_skills_assess(user):
+    data        = request.json or {}
+    skills      = data.get("skills", [])[:30]          # cap at 30
+    target_role = (data.get("target_role") or "").strip()[:100]
+    lang        = get_lang(data)
+
+    if not skills:
+        return jsonify({"error": "يرجى تحديد مهاراتك أولاً"}), 400
+
+    lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
+    system_prompt = f"""أنت خبير تطوير مسيرة مهنية. {lang_instruction}
+حلل مهارات المستخدم بالنسبة للوظيفة المستهدفة.
+أرجع JSON فقط بهذا الشكل (لا تضف نصاً خارجه):
+{{
+  "score": <0-100>,
+  "analysis": "<تحليل شامل>",
+  "strengths": ["<ميزة>", ...],
+  "gaps": ["<فجوة>", ...],
+  "roadmap": ["<خطوة>", ...]
+}}"""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user",   "content": f"الوظيفة: {target_role or 'غير محددة'}\nالمهارات: {', '.join(skills)}"}
+    ]
+    ai_response = get_ai_client().chat(messages, feature="skills", max_tokens=1200)
+    result = extract_json(ai_response) or {
+        "score": 65, "analysis": "لم نتمكن من تحليل مهاراتك في الوقت الحالي.",
+        "strengths": skills[:3], "gaps": [], "roadmap": []
+    }
+
+    email = user["email"]
+    bump_stat(email, "assessments")
+    add_activity(email, "skills", f"تقييم مهارات: {target_role or 'عام'}")
     return jsonify(result)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# MOCK INTERVIEW API
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Interview API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Interview streaming prompt format
+INTERVIEW_STREAM_SYSTEM = {
+    "ar": (
+        "أنت مدرب مقابلات احترافي. بعد كل إجابة من المرشح:\n"
+        "1. قيّم الإجابة بإيجاز (2-3 جمل)\n"
+        "2. اطرح السؤال التالي للمقابلة\n\n"
+        "اكتب ردك بهذا التنسيق الحرفي:\n"
+        "[التقييم]: نصك هنا\n"
+        "[النقاط]: X\n"
+        "[السؤال]: سؤالك هنا"
+    ),
+    "en": (
+        "You are a professional interview coach. After each answer:\n"
+        "1. Evaluate the answer briefly (2-3 sentences)\n"
+        "2. Ask the next interview question\n\n"
+        "Write your response in EXACTLY this format:\n"
+        "[FEEDBACK]: Your evaluation here\n"
+        "[SCORE]: X\n"
+        "[QUESTION]: Your next question here"
+    )
+}
+
+MAX_INTERVIEW_QUESTIONS = 7
+
+
+def parse_stream_response(text: str, lang: str) -> dict:
+    """Parse the structured streaming response into components."""
+    if lang == "en":
+        fb_tag = "[FEEDBACK]:"
+        sc_tag = "[SCORE]:"
+        qu_tag = "[QUESTION]:"
+    else:
+        fb_tag = "[التقييم]:"
+        sc_tag = "[النقاط]:"
+        qu_tag = "[السؤال]:"
+
+    feedback = question = ""
+    score = 7.0
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(fb_tag):
+            feedback = line[len(fb_tag):].strip()
+        elif line.startswith(sc_tag):
+            try:
+                score = float(line[len(sc_tag):].strip().split()[0])
+            except (ValueError, IndexError):
+                score = 7.0
+        elif line.startswith(qu_tag):
+            question = line[len(qu_tag):].strip()
+    return {"feedback": feedback, "score": score, "question": question}
+
+
 @app.route("/api/interview/start", methods=["POST"])
 @login_required
-def interview_start(user):
-    data = request.get_json()
-    role = data.get("role") or get_settings()["site"]["default_target_role"]
-    field = data.get("field") or "تكنولوجيا المعلومات"
-    mode = data.get("mode", "chat")  # 'chat' or 'video'
+def api_interview_start(user):
+    data    = request.json or {}
+    role    = (data.get("role") or "").strip()[:100]
+    field   = (data.get("field") or "").strip()[:100]
+    mode    = data.get("mode", "chat")
     feature = "video_interview" if mode == "video" else "chat_interview"
+    lang    = get_lang(data)
 
-    session_id = str(uuid.uuid4())
+    lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
     system_prompt = (
-        f"أنت مُحاوِر مهني محترف تجري مقابلة عمل لوظيفة {role} في مجال {field}. "
-        "اطرح سؤالاً واحداً في كل مرة باللغة العربية. "
-        "بعد إجابة المرشح، قدم تقييماً موجزاً ثم اطرح السؤال التالي. "
-        'أجب بصيغة JSON: {"question": "السؤال", "feedback": "التقييم أو فارغ للسؤال الأول", "score": 0}'
+        f"أنت مدرب مقابلات محترف لدور '{role}' في مجال '{field}'. {lang_instruction}\n"
+        "ابدأ بسؤال مقابلة واحد واضح وذو صلة."
+    ) if lang == "ar" else (
+        f"You are a professional interview coach for the role of '{role}' in the field of '{field}'. {lang_instruction}\n"
+        "Start with one clear, relevant interview question."
     )
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": "ابدأ المقابلة بالسؤال الأول."}
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
+    first_q  = get_ai_client().chat(messages, feature=feature, max_tokens=300)
+    if not first_q:
+        first_q = "أخبرني عن نفسك ومسيرتك المهنية." if lang == "ar" else "Tell me about yourself and your professional background."
 
-    ai_response = ai_chat(messages, feature=feature)
-
-    if ai_response:
-        result = extract_json(ai_response)
-        question = result.get("question", ai_response) if result else ai_response
-    else:
-        question = f"مرحباً بك في مقابلة وظيفة {role}. أخبرني عن نفسك وخبراتك المهنية في مجال {field}."
-
-    messages.append({"role": "assistant", "content": question})
-    interview_sessions[session_id] = {
-        "messages": messages,
-        "role": role, "field": field,
-        "mode": mode, "feature": feature,
-        "scores": [], "question_count": 1,
-        "email": user["email"]
-    }
-
-    return jsonify({"session_id": session_id, "question": question})
+    messages.append({"role": "assistant", "content": first_q})
+    session_id = secrets.token_urlsafe(20)
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO interview_sessions (session_id,email,role,field,mode,feature,lang,messages,scores,question_count) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (session_id, user["email"], role, field, mode, feature, lang,
+             json.dumps(messages), json.dumps([]), 1)
+        )
+    return jsonify({"session_id": session_id, "question": first_q, "question_count": 1})
 
 
 @app.route("/api/interview/respond", methods=["POST"])
 @login_required
-def interview_respond(user):
-    data = request.get_json()
-    session_id = data.get("session_id")
-    answer = data.get("answer", "")
+@rate_limited(max_calls=60)
+def api_interview_respond(user):
+    data       = request.json or {}
+    session_id = data.get("session_id", "")
+    answer     = (data.get("answer") or "").strip()
+    frame_b64  = data.get("frame_b64")          # optional camera JPEG
 
-    sess = interview_sessions.get(session_id)
-    if not sess:
-        return jsonify({"error": "جلسة المقابلة غير موجودة"}), 404
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM interview_sessions WHERE session_id=? AND email=?",
+            (session_id, user["email"])
+        ).fetchone()
+    if not row:
+        return jsonify({"error": "جلسة غير موجودة"}), 404
 
-    sess["messages"].append({"role": "user", "content": answer})
-    sess["question_count"] += 1
+    messages       = json.loads(row["messages"])
+    scores         = json.loads(row["scores"])
+    question_count = row["question_count"]
+    lang           = row["lang"] or "ar"
+    feature        = row["feature"] or "chat_interview"
 
-    eval_prompt = (
-        "قيّم الإجابة السابقة ثم اطرح السؤال التالي. "
-        'أجب بصيغة JSON: {"feedback": "تقييم الإجابة", "score": 7, "question": "السؤال التالي"}'
-    )
-    sess["messages"].append({"role": "user", "content": eval_prompt})
-
-    ai_response = ai_chat(sess["messages"], feature=sess.get("feature", "chat_interview"))
-
-    if ai_response:
-        result = extract_json(ai_response)
-        if not result:
-            result = {"feedback": ai_response, "score": 7, "question": "ما هي أهدافك المهنية المستقبلية؟"}
-    else:
-        placeholders = [
-            "كيف تتعامل مع ضغوط العمل والمواعيد النهائية الضيقة؟",
-            "أعطني مثالاً على مشكلة واجهتها في العمل وكيف حللتها.",
-            "ما هي أهم إنجازاتك المهنية؟",
-            "كيف تعمل ضمن فريق وما هو أسلوبك في التواصل؟",
-            "أين ترى نفسك بعد خمس سنوات؟"
+    # Build user message (add camera frame if vision mode)
+    if frame_b64 and feature == "video_interview":
+        user_content = [
+            {"type": "text",      "text": answer},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frame_b64}", "detail": "low"}}
         ]
-        q_idx = min(sess["question_count"] - 1, len(placeholders) - 1)
-        result = {
-            "feedback": "إجابة جيدة! أظهرت فهماً واضحاً للموضوع. يمكنك تحسين إجابتك بإضافة أمثلة عملية.",
-            "score": 7,
-            "question": placeholders[q_idx]
-        }
+    else:
+        user_content = answer
 
-    sess["messages"].pop()
-    sess["messages"].append({"role": "assistant", "content": json.dumps(result, ensure_ascii=False)})
-    sess["scores"].append(result.get("score", 7))
+    messages.append({"role": "user", "content": user_content})
 
-    return jsonify(result)
+    # Streaming system message
+    stream_sys = INTERVIEW_STREAM_SYSTEM.get(lang, INTERVIEW_STREAM_SYSTEM["ar"])
+    messages_with_sys = [{"role": "system", "content": stream_sys}] + messages[1:]
+
+    # Non-streaming call for structured parse
+    ai_response = get_ai_client().chat(messages_with_sys, feature=feature, max_tokens=500)
+    if not ai_response:
+        ai_response = (
+            "[التقييم]: لم أتمكن من تقييم إجابتك.\n[النقاط]: 6\n[السؤال]: حدثني عن تحدٍّ واجهته."
+            if lang == "ar" else
+            "[FEEDBACK]: Unable to evaluate your answer.\n[SCORE]: 6\n[QUESTION]: Tell me about a challenge you faced."
+        )
+
+    parsed = parse_stream_response(ai_response, lang)
+    scores.append(parsed["score"])
+    messages.append({"role": "assistant", "content": ai_response})
+    question_count += 1
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE interview_sessions SET messages=?, scores=?, question_count=? WHERE session_id=?",
+            (json.dumps(messages), json.dumps(scores), question_count, session_id)
+        )
+
+    done = question_count >= MAX_INTERVIEW_QUESTIONS
+    return jsonify({
+        "feedback":       parsed["feedback"],
+        "score":          parsed["score"],
+        "next_question":  parsed["question"] if not done else None,
+        "question_count": question_count,
+        "done":           done
+    })
+
+
+@app.route("/api/interview/respond/stream", methods=["POST"])
+@login_required
+@rate_limited(max_calls=60)
+def api_interview_respond_stream(user):
+    """SSE streaming version of /respond. Yields tokens then a final JSON event."""
+    data       = request.json or {}
+    session_id = data.get("session_id", "")
+    answer     = (data.get("answer") or "").strip()
+    frame_b64  = data.get("frame_b64")
+
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM interview_sessions WHERE session_id=? AND email=?",
+            (session_id, user["email"])
+        ).fetchone()
+    if not row:
+        def err_gen():
+            yield f"data: {json.dumps({'error': 'جلسة غير موجودة'})}\n\n"
+        return Response(stream_with_context(err_gen()), content_type="text/event-stream")
+
+    messages       = json.loads(row["messages"])
+    scores         = json.loads(row["scores"])
+    question_count = row["question_count"]
+    lang           = row["lang"] or "ar"
+    feature        = row["feature"] or "chat_interview"
+
+    if frame_b64 and feature == "video_interview":
+        user_content = [
+            {"type": "text",      "text": answer},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frame_b64}", "detail": "low"}}
+        ]
+    else:
+        user_content = answer
+
+    messages.append({"role": "user", "content": user_content})
+    stream_sys = INTERVIEW_STREAM_SYSTEM.get(lang, INTERVIEW_STREAM_SYSTEM["ar"])
+    messages_with_sys = [{"role": "system", "content": stream_sys}] + messages[1:]
+
+    ai_client = get_ai_client()
+
+    def generate():
+        full_text = []
+        try:
+            for chunk in ai_client.stream(messages_with_sys, feature=feature, max_tokens=500):
+                full_text.append(chunk)
+                yield f"data: {json.dumps({'token': chunk})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        complete = "".join(full_text)
+        parsed   = parse_stream_response(complete, lang)
+        new_scores = scores + [parsed["score"]]
+        new_messages = messages + [{"role": "assistant", "content": complete}]
+        new_qcount = question_count + 1
+
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE interview_sessions SET messages=?, scores=?, question_count=? WHERE session_id=?",
+                (json.dumps(new_messages), json.dumps(new_scores), new_qcount, session_id)
+            )
+
+        done = new_qcount >= MAX_INTERVIEW_QUESTIONS
+        yield f"data: {json.dumps({'done': True, 'score': parsed['score'], 'feedback': parsed['feedback'], 'next_question': parsed['question'] if not done else None, 'question_count': new_qcount, 'interview_done': done})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        content_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
 
 @app.route("/api/interview/end", methods=["POST"])
 @login_required
-def interview_end(user):
-    data = request.get_json()
-    session_id = data.get("session_id")
-    sess = interview_sessions.get(session_id)
+def api_interview_end(user):
+    data       = request.json or {}
+    session_id = data.get("session_id", "")
 
-    if not sess:
-        return jsonify({"error": "جلسة المقابلة غير موجودة"}), 404
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM interview_sessions WHERE session_id=? AND email=?",
+            (session_id, user["email"])
+        ).fetchone()
+    if not row:
+        return jsonify({"error": "جلسة غير موجودة"}), 404
 
-    scores = sess["scores"]
-    avg_score = round(sum(scores) / max(len(scores), 1), 1)
+    messages = json.loads(row["messages"])
+    scores   = json.loads(row["scores"])
+    lang     = row["lang"] or "ar"
+    role     = row["role"] or ""
+    field    = row["field"] or ""
+    mode     = row["mode"] or "chat"
+
+    overall_score = round(sum(scores) / len(scores), 1) if scores else 0.0
+    lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
 
     summary_prompt = (
-        "قدم ملخصاً نهائياً لأداء المرشح في المقابلة. "
-        'أجب بصيغة JSON: {"summary": "ملخص الأداء", "overall_score": 7.5, '
-        '"strengths": ["نقطة قوة"], "improvements": ["نقطة تحسين"], '
-        '"tips": ["نصيحة 1", "نصيحة 2"]}'
+        f"قدّم ملخصاً نهائياً لأداء المرشح. {lang_instruction}\n"
+        "أرجع JSON فقط:\n"
+        '{"summary":"<ملخص>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
+    ) if lang == "ar" else (
+        f"Provide a final performance summary for the candidate. {lang_instruction}\n"
+        "Return JSON only:\n"
+        '{"summary":"<summary>","strengths":["..."],"improvements":["..."],"tips":["..."]}'
     )
-    sess["messages"].append({"role": "user", "content": summary_prompt})
-    ai_response = ai_chat(sess["messages"], feature=sess.get("feature", "chat_interview"))
 
-    result = extract_json(ai_response)
+    summary_messages = messages + [{"role": "user", "content": summary_prompt}]
+    ai_response = get_ai_client().chat(summary_messages, feature="chat_interview", max_tokens=800)
+    result = extract_json(ai_response) or {
+        "summary": "أداء جيد في المقابلة." if lang == "ar" else "Good interview performance.",
+        "strengths": [], "improvements": [], "tips": []
+    }
+    result["overall_score"] = overall_score
 
-    if not result:
-        result = {
-            "summary": f"أداء جيد في مقابلة {sess['role']}. أظهرت معرفة جيدة بالمجال مع بعض النقاط التي تحتاج تطوير.",
-            "overall_score": avg_score,
-            "strengths": ["التواصل الواضح", "المعرفة التقنية", "الثقة بالنفس"],
-            "improvements": ["إضافة أمثلة عملية أكثر", "التركيز على النتائج القابلة للقياس"],
-            "tips": [
-                "استخدم أسلوب STAR للإجابة على الأسئلة السلوكية",
-                "حضّر أمثلة محددة من تجاربك السابقة",
-                "تدرب على الإجابة بإيجاز مع الحفاظ على الشمولية"
-            ]
-        }
+    # Save to history
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO interview_history (email,role,field,mode,overall_score,summary,strengths,improvements,tips) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                user["email"], role, field, mode, overall_score,
+                result.get("summary", ""),
+                json.dumps(result.get("strengths", [])),
+                json.dumps(result.get("improvements", [])),
+                json.dumps(result.get("tips", []))
+            )
+        )
+        conn.execute("DELETE FROM interview_sessions WHERE session_id=?", (session_id,))
 
     email = user["email"]
-    ensure_stats(email)
-    user_stats[email]["interviews"] += 1
-    add_activity(email, "interview", f"مقابلة تجريبية - {sess['role']}")
-    interview_sessions.pop(session_id, None)
+    bump_stat(email, "interviews")
+    add_activity(email, "interview", f"مقابلة: {role or 'عام'} — {overall_score}/10")
     return jsonify(result)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# RESUME API
-# ═══════════════════════════════════════════════════════════════════════════
+@app.route("/api/interview/history", methods=["GET"])
+@login_required
+def api_interview_history(user):
+    page     = max(1, int(request.args.get("page", 1)))
+    per_page = 10
+    offset   = (page - 1) * per_page
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM interview_history WHERE email=? ORDER BY id DESC LIMIT ? OFFSET ?",
+            (user["email"], per_page, offset)
+        ).fetchall()
+        total = conn.execute(
+            "SELECT COUNT(*) FROM interview_history WHERE email=?", (user["email"],)
+        ).fetchone()[0]
+    items = []
+    for r in rows:
+        items.append({
+            "id":            r["id"],
+            "role":          r["role"],
+            "field":         r["field"],
+            "mode":          r["mode"],
+            "overall_score": r["overall_score"],
+            "summary":       r["summary"],
+            "strengths":     json.loads(r["strengths"]  or "[]"),
+            "improvements":  json.loads(r["improvements"] or "[]"),
+            "tips":          json.loads(r["tips"] or "[]"),
+            "created_at":    r["created_at"],
+        })
+    return jsonify({"items": items, "total": total, "page": page, "per_page": per_page})
+
+
+@app.route("/api/interview/history/<int:history_id>", methods=["GET"])
+@login_required
+def api_interview_history_item(user, history_id):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM interview_history WHERE id=? AND email=?",
+            (history_id, user["email"])
+        ).fetchone()
+    if not row:
+        return jsonify({"error": "لم يُعثر على السجل"}), 404
+    return jsonify({
+        "id":            row["id"],
+        "role":          row["role"],
+        "field":         row["field"],
+        "mode":          row["mode"],
+        "overall_score": row["overall_score"],
+        "summary":       row["summary"],
+        "strengths":     json.loads(row["strengths"]    or "[]"),
+        "improvements":  json.loads(row["improvements"] or "[]"),
+        "tips":          json.loads(row["tips"]         or "[]"),
+        "created_at":    row["created_at"],
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Resume API
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.route("/api/resume/generate", methods=["POST"])
 @login_required
-def resume_generate(user):
-    data = request.get_json()
+@rate_limited(max_calls=5)
+def api_resume_generate(user):
+    data = request.json or {}
+    lang = get_lang(data)
+    lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
 
+    system_prompt = (
+        f"أنت خبير كتابة سير ذاتية احترافية. {lang_instruction}\n"
+        "حسّن السيرة الذاتية المقدمة وأعد هيكلتها.\n"
+        "أرجع JSON فقط:\n"
+        '{"summary":"<ملخص مهني>","experience":[{"title":"","company":"","period":"","bullets":["..."]}],'
+        '"skills":["..."],"improvements":["..."]}'
+    ) if lang == "ar" else (
+        f"You are a professional resume writing expert. {lang_instruction}\n"
+        "Improve and restructure the provided resume.\n"
+        "Return JSON only:\n"
+        '{"summary":"<professional summary>","experience":[{"title":"","company":"","period":"","bullets":["..."]}],'
+        '"skills":["..."],"improvements":["..."]}'
+    )
+
+    user_msg = f"السيرة الذاتية:\n{json.dumps(data, ensure_ascii=False, indent=2)}"
     messages = [
-        {"role": "system", "content": (
-            "أنت خبير كتابة سير ذاتية محترف. حسّن المحتوى المقدم واكتب ملخصاً مهنياً. "
-            'أجب بصيغة JSON: {"professional_summary": "الملخص المهني", '
-            '"enhanced_experiences": [{"title": "المسمى", "description": "وصف محسن"}], '
-            '"skill_categories": [{"category": "فئة", "skills": ["مهارة"]}]}'
-        )},
-        {"role": "user", "content": json.dumps(data, ensure_ascii=False)}
+        {"role": "system", "content": system_prompt},
+        {"role": "user",   "content": user_msg}
     ]
-
-    ai_response = ai_chat(messages, feature="resume")
-    enhancements = extract_json(ai_response)
-
-    if not enhancements:
-        enhancements = {
-            "professional_summary": "محترف ذو خبرة في مجال عمله، يتمتع بمهارات قوية في التواصل وحل المشكلات.",
-            "enhanced_experiences": [],
-            "skill_categories": []
-        }
+    ai_response = get_ai_client().chat(messages, feature="resume", max_tokens=1500)
+    result = extract_json(ai_response) or {
+        "summary": data.get("summary", ""),
+        "experience": data.get("experience", []),
+        "skills": data.get("skills", []),
+        "improvements": ["تعذّر تحسين السيرة تلقائياً."]
+    }
 
     email = user["email"]
-    ensure_stats(email)
-    user_stats[email]["resumes"] += 1
-    add_activity(email, "resume", "إنشاء سيرة ذاتية")
-    return jsonify({"resume_data": data, "enhancements": enhancements})
+    bump_stat(email, "resumes")
+    add_activity(email, "resume", "تحسين سيرة ذاتية")
+    return jsonify(result)
+
+
+def _render_arabic(text: str) -> str:
+    """Reshape + bidi-order Arabic text for correct PDF rendering."""
+    if HAS_ARABIC_RESHAPE:
+        try:
+            reshaped = arabic_reshaper.reshape(str(text))
+            return get_display(reshaped)
+        except Exception:
+            pass
+    return str(text)
 
 
 @app.route("/api/resume/export-pdf", methods=["POST"])
 @login_required
-def resume_export_pdf(user):
-    data = request.get_json()
-
+def api_resume_export_pdf(user):
     if not HAS_REPORTLAB:
-        return jsonify({"error": "مكتبة PDF غير متوفرة"}), 500
+        return jsonify({"error": "مكتبة PDF غير متوفرة. pip install reportlab"}), 503
 
-    buffer = io.BytesIO()
-    c = pdf_canvas.Canvas(buffer, pagesize=A4)
-    w, h = A4
+    data = request.json or {}
 
-    y = h - 2 * cm
-    c.setFont("Helvetica-Bold", 20)
-    c.drawCentredString(w / 2, y, data.get("name", ""))
-    y -= 1 * cm
-    c.setFont("Helvetica", 12)
-    c.drawCentredString(w / 2, y, data.get("email", "") + " | " + data.get("phone", ""))
-    y -= 1.5 * cm
+    # Try to load Arabic font (Amiri) if available
+    arabic_font = "Helvetica"
+    font_path = os.path.join(BASE_DIR, "fonts", "Amiri-Regular.ttf")
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont("Amiri", font_path))
+            arabic_font = "Amiri"
+        except Exception:
+            pass
 
-    sections = [
-        ("Professional Summary", data.get("summary", "")),
-        ("Experience", data.get("experience", "")),
-        ("Education", data.get("education", "")),
-        ("Skills", data.get("skills", ""))
-    ]
+    buf = io.BytesIO()
+    c   = pdf_canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
 
-    for title, content in sections:
-        if not content:
-            continue
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(2 * cm, y, title)
-        y -= 0.7 * cm
-        c.setFont("Helvetica", 11)
-        for line in str(content).split("\n"):
-            if y < 2 * cm:
-                c.showPage()
-                y = h - 2 * cm
-            c.drawString(2 * cm, y, line[:80])
-            y -= 0.5 * cm
-        y -= 0.5 * cm
+    # Header
+    c.setFillColorRGB(0.1, 0.1, 0.25)
+    c.rect(0, H - 80, W, 80, fill=True, stroke=False)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("Helvetica-Bold", 22)
+    name = _render_arabic(data.get("name", user["name"]))
+    c.drawCentredString(W / 2, H - 45, name)
+    c.setFont("Helvetica", 11)
+    contact_parts = [data.get("email", user["email"])]
+    if data.get("phone"):  contact_parts.append(data["phone"])
+    if data.get("location"): contact_parts.append(data["location"])
+    c.drawCentredString(W / 2, H - 65, "  |  ".join(contact_parts))
+
+    y = H - 110
+    margin = 2 * cm
+
+    def section_header(title, ypos):
+        c.setFillColorRGB(0.15, 0.35, 0.7)
+        c.rect(margin, ypos - 4, W - 2 * margin, 18, fill=True, stroke=False)
+        c.setFillColorRGB(1, 1, 1)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin + 5, ypos, _render_arabic(title))
+        c.setFillColorRGB(0, 0, 0)
+        return ypos - 24
+
+    def wrap_text(text, width_pts, font_name="Helvetica", size=10):
+        words = str(text).split()
+        lines, current = [], ""
+        c.setFont(font_name, size)
+        for w in words:
+            test = (current + " " + w).strip()
+            if c.stringWidth(test, font_name, size) < width_pts:
+                current = test
+            else:
+                if current:
+                    lines.append(current)
+                current = w
+        if current:
+            lines.append(current)
+        return lines
+
+    def draw_text(text, xpos, ypos, font_name="Helvetica", size=10, max_width=None):
+        c.setFont(font_name, size)
+        rendered = _render_arabic(text)
+        if max_width:
+            lines = wrap_text(rendered, max_width, font_name, size)
+            for line in lines:
+                c.drawString(xpos, ypos, line)
+                ypos -= size + 3
+            return ypos
+        c.drawString(xpos, ypos, rendered)
+        return ypos - (size + 4)
+
+    # Professional Summary
+    if data.get("summary"):
+        y = section_header("الملخص المهني / Professional Summary", y)
+        c.setFont("Helvetica", 10)
+        for line in wrap_text(data["summary"], W - 2 * margin - 10):
+            c.drawString(margin + 5, y, _render_arabic(line))
+            y -= 14
+        y -= 6
+
+    # Experience
+    if data.get("experience"):
+        y = section_header("الخبرة العملية / Work Experience", y)
+        for exp in data["experience"]:
+            c.setFont("Helvetica-Bold", 11)
+            c.setFillColorRGB(0.1, 0.1, 0.3)
+            y = draw_text(f"{exp.get('title','')} — {exp.get('company','')}", margin + 5, y, "Helvetica-Bold", 11)
+            c.setFillColorRGB(0.4, 0.4, 0.4)
+            y = draw_text(exp.get("period", ""), margin + 5, y, "Helvetica", 9)
+            c.setFillColorRGB(0, 0, 0)
+            for bullet in exp.get("bullets", []):
+                y = draw_text(f"  • {bullet}", margin + 10, y, "Helvetica", 10, W - 2 * margin - 20)
+            y -= 6
+            if y < 80:
+                c.showPage(); y = H - 60
+
+    # Skills
+    if data.get("skills"):
+        y = section_header("المهارات / Skills", y)
+        skills_str = "  •  ".join(data["skills"])
+        for line in wrap_text(skills_str, W - 2 * margin - 10):
+            y = draw_text(line, margin + 5, y)
+        y -= 6
 
     c.save()
-    buffer.seek(0)
-    return send_file(buffer, mimetype="application/pdf",
-                     as_attachment=True, download_name="resume.pdf")
+    buf.seek(0)
+    safe_name = user["name"].replace(" ", "_")
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"resume_{safe_name}.pdf",
+        mimetype="application/pdf"
+    )
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# CAREER RECOMMENDATIONS API
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Career API
+# ═══════════════════════════════════════════════════════════════════════════════
 @app.route("/api/career/recommend", methods=["POST"])
 @login_required
-def career_recommend(user):
-    data = request.get_json()
-    skills = data.get("skills", [])
-    interests = data.get("interests", "")
-    experience = data.get("experience_years", 0)
+@rate_limited(max_calls=10)
+def api_career_recommend(user):
+    data   = request.json or {}
+    lang   = get_lang(data)
+    lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
 
-    skills_text = ", ".join(skills) if skills else "غير محدد"
+    system_prompt = (
+        f"أنت مستشار مسيرة مهنية خبير. {lang_instruction}\n"
+        "بناءً على المهارات والخلفية المقدمة، اقترح 3 مسارات مهنية.\n"
+        "أرجع JSON فقط:\n"
+        '{"paths":[{"title":"","match_percentage":0,"description":"","required_skills":["..."],"salary_range":"","growth_outlook":""}],"general_advice":""}'
+    ) if lang == "ar" else (
+        f"You are an expert career counselor. {lang_instruction}\n"
+        "Based on the provided skills and background, suggest 3 career paths.\n"
+        "Return JSON only:\n"
+        '{"paths":[{"title":"","match_percentage":0,"description":"","required_skills":["..."],"salary_range":"","growth_outlook":""}],"general_advice":""}'
+    )
 
+    user_content = json.dumps({
+        k: v for k, v in data.items() if k != "lang"
+    }, ensure_ascii=False)
     messages = [
-        {"role": "system", "content": (
-            "أنت مستشار مهني خبير. بناءً على مهارات المستخدم واهتماماته، "
-            "اقترح مسارات مهنية مناسبة. "
-            'أجب بصيغة JSON: {"paths": [{"title": "المسمى الوظيفي", '
-            '"match_percentage": 85, "description": "وصف", '
-            '"required_skills": ["مهارة"], "salary_range": "النطاق", '
-            '"growth_outlook": "التوقعات"}], '
-            '"general_advice": "نصيحة عامة"}'
-        )},
-        {"role": "user", "content": (
-            f"مهاراتي: {skills_text}\n"
-            f"اهتماماتي: {interests}\n"
-            f"سنوات الخبرة: {experience}\n"
-            "اقترح لي مسارات مهنية مناسبة."
-        )}
+        {"role": "system", "content": system_prompt},
+        {"role": "user",   "content": user_content}
     ]
-
-    ai_response = ai_chat(messages, feature="career")
-    result = extract_json(ai_response)
-
-    if not result:
-        result = {
-            "paths": [
-                {
-                    "title": "مهندس برمجيات",
-                    "match_percentage": 88,
-                    "description": "تطوير وصيانة التطبيقات والأنظمة البرمجية",
-                    "required_skills": ["Python", "JavaScript", "SQL", "Git"],
-                    "salary_range": "8,000 - 25,000 ر.س",
-                    "growth_outlook": "نمو مرتفع - 22% خلال 5 سنوات"
-                },
-                {
-                    "title": "محلل بيانات",
-                    "match_percentage": 75,
-                    "description": "تحليل البيانات واستخراج الرؤى لدعم القرارات",
-                    "required_skills": ["Python", "SQL", "Power BI", "Excel"],
-                    "salary_range": "7,000 - 20,000 ر.س",
-                    "growth_outlook": "نمو مرتفع جداً - 35% خلال 5 سنوات"
-                },
-                {
-                    "title": "مدير مشاريع تقنية",
-                    "match_percentage": 68,
-                    "description": "إدارة فرق التطوير والمشاريع التقنية",
-                    "required_skills": ["Scrum", "Agile", "JIRA", "Communication"],
-                    "salary_range": "12,000 - 30,000 ر.س",
-                    "growth_outlook": "نمو متوسط - 15% خلال 5 سنوات"
-                }
-            ],
-            "general_advice": "بناءً على مهاراتك، لديك فرص ممتازة في مجال التكنولوجيا. ركز على تطوير مهاراتك العملية وبناء مشاريع شخصية."
-        }
+    ai_response = get_ai_client().chat(messages, feature="career", max_tokens=1200)
+    result = extract_json(ai_response) or {
+        "paths": [
+            {"title": "مهندس برمجيات", "match_percentage": 88,
+             "description": "تطوير وصيانة التطبيقات",
+             "required_skills": ["Python", "JavaScript", "SQL"],
+             "salary_range": "8,000–25,000 ر.س", "growth_outlook": "نمو مرتفع"}
+        ],
+        "general_advice": "ركز على تطوير مهاراتك العملية."
+    }
 
     email = user["email"]
-    ensure_stats(email)
-    user_stats[email]["careers"] += 1
+    bump_stat(email, "careers")
     add_activity(email, "career", "استكشاف مسارات مهنية")
     return jsonify(result)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Run Server
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Bootstrap & Run
+# ═══════════════════════════════════════════════════════════════════════════════
+init_db()
+
+# Reload admin password from settings if previously changed via UI
+_settings_cache = load_settings()
+if _settings_cache.get("admin", {}).get("password"):
+    ADMIN_PASSWORD = _settings_cache["admin"]["password"]
+
 if __name__ == "__main__":
-    print("=" * 55)
-    print("  Talent Metric Server Starting...")
-    print(f"  Admin Password: {'[OK] Set via ADMIN_PASSWORD env' if os.environ.get('ADMIN_PASSWORD') else '[--] Using default (admin123)'}")
-    print(f"  Settings file: {SETTINGS_FILE}")
-    print(f"  PDF Export: {'[OK] Available' if HAS_REPORTLAB else '[--] Install reportlab'}")
-    print(f"  URL: http://localhost:5000")
-    print("  Admin: http://localhost:5000/admin")
-    print("=" * 55)
-    app.run(debug=True, port=5000)
+    print("=" * 60)
+    print("  Talent Metric v2.0")
+    print(f"  DB:       {DB_FILE}")
+    print(f"  Settings: {SETTINGS_FILE}")
+    print(f"  PDF:      {'✓ reportlab' if HAS_REPORTLAB else '✗ pip install reportlab'}")
+    print(f"  Arabic PDF: {'✓ arabic_reshaper + bidi' if HAS_ARABIC_RESHAPE else '✗ pip install arabic-reshaper python-bidi'}")
+    print(f"  Admin pw: {'✓ env ADMIN_PASSWORD set' if os.environ.get('ADMIN_PASSWORD') else '⚠ using default admin123'}")
+    print(f"  URL:      http://localhost:5000")
+    print(f"  Admin:    http://localhost:5000/admin")
+    print("=" * 60)
+    app.run(debug=DEBUG_MODE, port=5000)

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="إعدادات الحساب - Talent Metric">
+    <title>Talent Metric | إعدادات الحساب</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+    <style>
+        /* ── Page Header ── */
+        .page-header {
+            padding: 2.5rem 0 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .page-header-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(139,92,246,.25), rgba(59,130,246,.25));
+            border: 1px solid rgba(139,92,246,.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: #a78bfa;
+            flex-shrink: 0;
+        }
+        .page-header-text h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin: 0 0 .2rem;
+        }
+        .page-header-text p {
+            font-size: .92rem;
+            color: #94a3b8;
+            margin: 0;
+        }
+
+        /* ── Two-column form layout ── */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        /* ── Card title ── */
+        .dash-card-title {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 1.4rem;
+        }
+        .dash-card-title i {
+            color: #a78bfa;
+            font-size: .95rem;
+        }
+
+        /* ── Form elements ── */
+        .form-group {
+            margin-bottom: 1.1rem;
+        }
+        .form-label {
+            display: block;
+            font-size: .85rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: .45rem;
+            letter-spacing: .02em;
+        }
+        .form-input-lg {
+            width: 100%;
+            padding: .75rem 1rem;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-family: 'Cairo', sans-serif;
+            font-size: .95rem;
+            transition: border-color .2s, box-shadow .2s;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .form-input-lg::placeholder { color: #475569; }
+        .form-input-lg:focus {
+            border-color: rgba(139,92,246,.5);
+            box-shadow: 0 0 0 3px rgba(139,92,246,.12);
+        }
+
+        /* ── Save message feedback ── */
+        .save-msg {
+            display: inline-block;
+            margin-top: .6rem;
+            font-size: .85rem;
+            font-weight: 600;
+            min-height: 1.2em;
+            transition: opacity .3s;
+        }
+        .save-msg.success { color: #34d399; }
+        .save-msg.error   { color: #f87171; }
+
+        /* ── Account stats card ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+        .stat-item {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 12px;
+            padding: 1.1rem 1rem;
+            text-align: center;
+            transition: border-color .2s;
+        }
+        .stat-item:hover { border-color: rgba(139,92,246,.3); }
+        .stat-item-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto .6rem;
+            font-size: .95rem;
+        }
+        .stat-icon-calendar {
+            background: rgba(59,130,246,.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59,130,246,.2);
+        }
+        .stat-icon-interview {
+            background: rgba(16,185,129,.15);
+            color: #34d399;
+            border: 1px solid rgba(16,185,129,.2);
+        }
+        .stat-icon-assessment {
+            background: rgba(251,191,36,.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251,191,36,.2);
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            display: block;
+            line-height: 1;
+            margin-bottom: .3rem;
+        }
+        .stat-label {
+            font-size: .78rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        /* ── Avatar area ── */
+        .profile-avatar-section {
+            display: flex;
+            align-items: center;
+            gap: 1.1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .profile-avatar {
+            width: 62px;
+            height: 62px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 4px 20px rgba(124,58,237,.35);
+        }
+        .profile-avatar-info .name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+        .profile-avatar-info .email {
+            font-size: .83rem;
+            color: #64748b;
+            margin-top: .15rem;
+        }
+
+        /* ── Section divider ── */
+        .section-divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,.06);
+            margin: .3rem 0 1.1rem;
+        }
+
+        /* ── btn-outline override for password card ── */
+        .card-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: .4rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">Talent Metric</span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard">لوحة التحكم</a></li>
+                <li><a href="/skills">تقييم المهارات</a></li>
+                <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/history">السجل</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career">المسار المهني</a></li>
+                <li><a href="/profile" class="active">حسابي</a></li>
+                <li><button class="btn btn-glass btn-sm lang-toggle-btn" id="langToggleBtn" style="margin-left: 0.5rem; font-weight: bold;">EN</button></li>
+                <li>
+                    <button class="btn btn-outline btn-sm" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> خروج
+                    </button>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-header-icon">
+                    <i class="fas fa-user-cog"></i>
+                </div>
+                <div class="page-header-text">
+                    <h1>إعدادات الحساب</h1>
+                    <p>إدارة معلوماتك الشخصية</p>
+                </div>
+            </div>
+
+            <!-- Two-column form row -->
+            <div class="form-row">
+
+                <!-- Column A: Account Info -->
+                <div class="dash-card">
+                    <h3 class="dash-card-title">
+                        <i class="fas fa-id-card"></i>
+                        معلومات الحساب
+                    </h3>
+
+                    <!-- Avatar / identity preview -->
+                    <div class="profile-avatar-section">
+                        <div class="profile-avatar" id="profileAvatarInitials">م</div>
+                        <div class="profile-avatar-info">
+                            <div class="name" id="profileAvatarName">—</div>
+                            <div class="email" id="profileAvatarEmail">—</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="profileName">
+                            <i class="fas fa-user" style="margin-left:.4rem;color:#a78bfa;font-size:.8rem;"></i>
+                            الاسم الكامل
+                        </label>
+                        <input
+                            type="text"
+                            id="profileName"
+                            class="form-input-lg"
+                            placeholder="أدخل اسمك الكامل"
+                            autocomplete="name"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="profileEmail">
+                            <i class="fas fa-envelope" style="margin-left:.4rem;color:#a78bfa;font-size:.8rem;"></i>
+                            البريد الإلكتروني
+                        </label>
+                        <input
+                            type="email"
+                            id="profileEmail"
+                            class="form-input-lg"
+                            placeholder="example@email.com"
+                            autocomplete="email"
+                            dir="ltr"
+                        >
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn btn-primary" id="saveProfileBtn">
+                            <i class="fas fa-save"></i> حفظ التغييرات
+                        </button>
+                        <span class="save-msg" id="profileSaveMsg"></span>
+                    </div>
+                </div>
+
+                <!-- Column B: Change Password -->
+                <div class="dash-card">
+                    <h3 class="dash-card-title">
+                        <i class="fas fa-lock"></i>
+                        تغيير كلمة المرور
+                    </h3>
+
+                    <div class="form-group">
+                        <label class="form-label" for="currentPassword">
+                            <i class="fas fa-key" style="margin-left:.4rem;color:#a78bfa;font-size:.8rem;"></i>
+                            كلمة المرور الحالية
+                        </label>
+                        <input
+                            type="password"
+                            id="currentPassword"
+                            class="form-input-lg"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="newPassword">
+                            <i class="fas fa-lock-open" style="margin-left:.4rem;color:#a78bfa;font-size:.8rem;"></i>
+                            كلمة المرور الجديدة
+                        </label>
+                        <input
+                            type="password"
+                            id="newPassword"
+                            class="form-input-lg"
+                            placeholder="••••••••"
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPassword">
+                            <i class="fas fa-shield-halved" style="margin-left:.4rem;color:#a78bfa;font-size:.8rem;"></i>
+                            تأكيد كلمة المرور
+                        </label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            class="form-input-lg"
+                            placeholder="••••••••"
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <div class="card-actions">
+                        <button class="btn btn-outline" id="changePasswordBtn">
+                            <i class="fas fa-rotate"></i> تغيير كلمة المرور
+                        </button>
+                        <span class="save-msg" id="passwordChangeMsg"></span>
+                    </div>
+                </div>
+
+            </div><!-- /.form-row -->
+
+            <!-- Account Info Stats -->
+            <div class="dash-card">
+                <h3 class="dash-card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    ملخص الحساب
+                </h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-item-icon stat-icon-calendar">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <span class="stat-value" id="memberSince">—</span>
+                        <span class="stat-label">تاريخ الانضمام</span>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon stat-icon-interview">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                        <span class="stat-value" id="profileInterviews">0</span>
+                        <span class="stat-label">إجمالي المقابلات</span>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon stat-icon-assessment">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <span class="stat-value" id="profileAssessments">0</span>
+                        <span class="stat-label">إجمالي التقييمات</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/AIScript.js"></script>
+</body>
+</html>

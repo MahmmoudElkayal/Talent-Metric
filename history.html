@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="سجل المقابلات - Talent Metric">
+    <title>Talent Metric | سجل المقابلات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/AIStyle.css">
+    <style>
+        /* ── Page Header ── */
+        .page-header {
+            padding: 2.5rem 0 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .page-header-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(59,130,246,.25), rgba(139,92,246,.25));
+            border: 1px solid rgba(59,130,246,.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: #60a5fa;
+            flex-shrink: 0;
+        }
+        .page-header-text h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin: 0 0 .2rem;
+        }
+        .page-header-text p {
+            font-size: .92rem;
+            color: #94a3b8;
+            margin: 0;
+        }
+
+        /* ── Skeleton ── */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: .4; }
+        }
+        .skeleton-card {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.05);
+            border-radius: 12px;
+            height: 90px;
+            margin-bottom: 1rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* ── History Card ── */
+        .history-card {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: border-color .2s, transform .15s, box-shadow .2s;
+        }
+        .history-card:hover {
+            border-color: rgba(59,130,246,.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 24px rgba(59,130,246,.08);
+        }
+
+        /* Card header row */
+        .history-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .history-card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-card-meta {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            flex-shrink: 0;
+        }
+        .history-date {
+            font-size: .8rem;
+            color: #64748b;
+        }
+
+        /* Score badge */
+        .score-badge {
+            padding: .25rem .75rem;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: .85rem;
+        }
+        .score-high {
+            background: rgba(16,185,129,.15);
+            color: #34d399;
+            border: 1px solid rgba(16,185,129,.3);
+        }
+        .score-mid {
+            background: rgba(251,191,36,.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251,191,36,.3);
+        }
+        .score-low {
+            background: rgba(239,68,68,.15);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,.3);
+        }
+
+        /* Tags row */
+        .history-tags {
+            display: flex;
+            gap: .5rem;
+            margin-top: .7rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .2rem .65rem;
+            border-radius: 50px;
+            font-size: .78rem;
+            font-weight: 600;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.09);
+            color: #94a3b8;
+        }
+        .tag-chip i { font-size: .72rem; }
+
+        /* Toggle button */
+        .toggle-details-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            margin-top: .85rem;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #60a5fa;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: color .2s;
+        }
+        .toggle-details-btn:hover { color: #93c5fd; }
+        .toggle-details-btn i { transition: transform .25s; }
+        .toggle-details-btn.open i { transform: rotate(180deg); }
+
+        /* Expandable details */
+        .history-details {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .history-details.open { display: block; }
+
+        .detail-group { margin-bottom: .8rem; }
+        .detail-group:last-child { margin-bottom: 0; }
+        .detail-group h4 {
+            font-size: .8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: .4rem;
+        }
+        .detail-group.strengths h4   { color: #34d399; }
+        .detail-group.improvements h4 { color: #fb923c; }
+        .detail-group.tips h4         { color: #60a5fa; }
+
+        .detail-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: .3rem;
+        }
+        .detail-list li {
+            font-size: .85rem;
+            color: #cbd5e1;
+            display: flex;
+            align-items: flex-start;
+            gap: .5rem;
+        }
+        .detail-list li::before {
+            content: '•';
+            flex-shrink: 0;
+            margin-top: .05rem;
+        }
+        .detail-group.strengths   .detail-list li::before { color: #34d399; }
+        .detail-group.improvements .detail-list li::before { color: #fb923c; }
+        .detail-group.tips         .detail-list li::before { color: #60a5fa; }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 3.5rem;
+            color: #334155;
+            margin-bottom: 1.2rem;
+        }
+        .empty-state h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: .5rem;
+        }
+        .empty-state p {
+            color: #475569;
+            margin-bottom: 1.5rem;
+            font-size: .92rem;
+        }
+
+        /* ── Section title ── */
+        .section-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+        }
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+        .session-count {
+            font-size: .82rem;
+            color: #475569;
+            background: rgba(255,255,255,.05);
+            padding: .2rem .65rem;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,.06);
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-app" id="navbar">
+        <div class="container nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon"><i class="fas fa-rocket"></i></span>
+                <span class="logo-text">Talent Metric</span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/dashboard">لوحة التحكم</a></li>
+                <li><a href="/skills">تقييم المهارات</a></li>
+                <li><a href="/interview">المقابلات</a></li>
+                <li><a href="/history" class="active">السجل</a></li>
+                <li><a href="/resume">السيرة الذاتية</a></li>
+                <li><a href="/career">المسار المهني</a></li>
+                <li><a href="/profile">حسابي</a></li>
+                <li><button class="btn btn-glass btn-sm lang-toggle-btn" id="langToggleBtn" style="margin-left: 0.5rem; font-weight: bold;">EN</button></li>
+                <li>
+                    <button class="btn btn-outline btn-sm" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> خروج
+                    </button>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="القائمة">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="container">
+
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-header-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <div class="page-header-text">
+                    <h1>سجل المقابلات</h1>
+                    <p>راجع نتائج مقابلاتك السابقة</p>
+                </div>
+            </div>
+
+            <!-- History Content -->
+            <div id="historyContent">
+
+                <!-- Loading Skeletons -->
+                <div id="historyLoading">
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="historyEmpty" style="display:none;">
+                    <div class="dash-card empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>لا توجد مقابلات سابقة</h3>
+                        <p>لم تُجرِ أي مقابلة تجريبية حتى الآن. ابدأ مقابلتك الأولى وستظهر نتائجها هنا.</p>
+                        <a href="/interview" class="btn btn-primary">
+                            <i class="fas fa-microphone"></i> ابدأ مقابلة الآن
+                        </a>
+                    </div>
+                </div>
+
+                <!-- History List — populated by AIScript.js -->
+                <div id="historyList" style="display:none;">
+                    <div class="section-toolbar">
+                        <span class="section-title">الجلسات السابقة</span>
+                        <span class="session-count" id="sessionCount">0 جلسة</span>
+                    </div>
+                    <!-- Cards injected here by JS -->
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="/AIScript.js"></script>
+</body>
+</html>
