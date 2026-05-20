@@ -725,7 +725,7 @@ const TalentMetric = {
         sessionId: null, questionCount: 0, mode: 'chat',
         stream: null, recognition: null, synth: window.speechSynthesis, ttsEnabled: true,
         timerInt: null, seconds: 0, accumulatedStreamText: '',
-        silenceTimer: null, silenceDelay: 2500, isListening: false,
+        silenceTimer: null, silenceDelay: 4000, isListening: false,
         
         init() {
             if (!TalentMetric.requireAuth()) return;
@@ -821,13 +821,13 @@ const TalentMetric = {
         startListeningForAnswer() {
             if (!this.recognition || !this.sessionId || this.isListening) return;
 
-            this.isListening = true;
+            const isEn      = TalentMetric.Lang.current === 'en';
             const input     = document.getElementById('videoTranscriptInput');
             const sttBtn    = document.getElementById('sttMicBtn');
             const sttWave   = document.getElementById('sttWave');
             const statusTxt = document.getElementById('sttStatusText');
-            const isEn      = TalentMetric.Lang.current === 'en';
 
+            this.isListening = true;
             if (input)     input.value = '';
             if (sttBtn)    { sttBtn.classList.add('listening'); sttBtn.querySelector('i').className = 'fas fa-paper-plane'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
             if (sttWave)   sttWave.classList.add('listening');
@@ -835,43 +835,75 @@ const TalentMetric = {
 
             this.recognition.lang = isEn ? 'en-US' : 'ar-SA';
 
+            // ── Reset accumulated text for this round ──
+            this._finalTranscript = '';
+
             this.recognition.onstart = () => {
                 if (statusTxt) statusTxt.textContent = isEn ? 'Listening... speak your answer' : 'جاري الاستماع... تحدث الآن';
             };
 
             this.recognition.onresult = (e) => {
-                let finalText = '', interimText = '';
-                for (let i = 0; i < e.results.length; i++) {
-                    if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
-                    else interimText += e.results[i][0].transcript;
+                let interimText = '';
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    if (e.results[i].isFinal) {
+                        this._finalTranscript += e.results[i][0].transcript + ' ';
+                    } else {
+                        interimText += e.results[i][0].transcript;
+                    }
                 }
-                const transcribed = (finalText || interimText).trim();
-                if (input) input.value = transcribed;
+                // Show accumulated final + any current interim
+                const displayed = (this._finalTranscript + interimText).trim();
+                if (input) input.value = displayed;
 
-                // Restart silence timer on each speech chunk
+                // Restart silence timer on every speech chunk (4s to allow natural pauses)
                 if (this.silenceTimer) clearTimeout(this.silenceTimer);
-                if (transcribed) {
+                if (displayed) {
                     this.silenceTimer = setTimeout(() => this.stopListeningAndSend(), this.silenceDelay);
                 }
             };
 
             this.recognition.onerror = (e) => {
+                // no-speech is not fatal — just restart recognition quietly
+                if (e.error === 'no-speech') {
+                    // If we already have text from earlier, respect the silence timer
+                    if (!this._finalTranscript.trim()) {
+                        try { this.recognition.start(); } catch(_) {}
+                    }
+                    return;
+                }
+                // Any real error (not-allowed, audio-capture, aborted): stop and report
                 this.isListening = false;
-                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
+                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = ''; }
                 if (sttWave) sttWave.classList.remove('listening');
-                let msg = isEn ? 'Mic error, click to retry' : 'خطأ في الميكروفون، انقر للمحاولة';
-                if (e.error === 'not-allowed') msg = isEn ? 'Microphone blocked — grant permission' : 'تم حظر الميكروفون — اسمح بالوصول';
-                if (e.error === 'no-speech')   msg = isEn ? 'No speech detected' : 'لم يُكشف صوت';
+                let msg = isEn ? 'Mic error — click mic to retry' : 'خطأ في الميكروفون — انقر للمحاولة';
+                if (e.error === 'not-allowed') msg = isEn ? 'Microphone blocked — grant browser permission' : 'تم حظر الميكروفون — اسمح بالوصول في الإعدادات';
                 if (statusTxt) statusTxt.textContent = msg;
             };
 
             this.recognition.onend = () => {
+                // Chrome's Web Speech API stops after ~60s even in continuous mode.
+                // If we are still supposed to be listening, restart automatically.
+                if (this.isListening && this.sessionId) {
+                    // Only restart if no silence timer is already counting down a send
+                    if (!this.silenceTimer) {
+                        try { this.recognition.start(); } catch(_) {}
+                    }
+                    return;
+                }
+                // Otherwise a legitimate stop — clean up UI
                 this.isListening = false;
-                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = isEn ? 'Send now' : 'إرسال الآن'; }
+                if (sttBtn)  { sttBtn.classList.remove('listening'); sttBtn.querySelector('i').className = 'fas fa-microphone'; sttBtn.title = ''; }
                 if (sttWave) sttWave.classList.remove('listening');
             };
 
-            try { this.recognition.start(); } catch(err) { this.isListening = false; }
+            try {
+                this.recognition.start();
+            } catch(err) {
+                // Recognition may already be running — that is OK
+                if (err.name !== 'InvalidStateError') {
+                    this.isListening = false;
+                }
+            }
         },
 
         stopListeningAndSend() {

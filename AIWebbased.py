@@ -1979,13 +1979,24 @@ def api_interview_start(user):
     lang    = get_lang(data)
 
     lang_instruction = LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["ar"])
-    system_prompt = (
-        f"أنت مدرب مقابلات محترف لدور '{role}' في مجال '{field}'. {lang_instruction}\n"
-        "ابدأ بسؤال مقابلة واحد واضح وذو صلة."
-    ) if lang == "ar" else (
-        f"You are a professional interview coach for the role of '{role}' in the field of '{field}'. {lang_instruction}\n"
-        "Start with one clear, relevant interview question."
-    )
+
+    # Build an intro-first system prompt: greet, introduce, explain, then ask first Q
+    if lang == "ar":
+        system_prompt = (
+            f"أنت محاور ذكاء اصطناعي محترف لدور '{role}' في مجال '{field}'. {lang_instruction}\n"
+            "ابدأ الجلسة بالترحيب بالمرشح، قدّم نفسك بإيجاز كمحاور ذكاء اصطناعي، "
+            "اشرح أن المقابلة ستتضمن عدة أسئلة وسيتلقى المرشح تقييماً في النهاية، "
+            "ثم اطرح سؤالك الأول المناسب للدور. "
+            "اجعل التقديم دافئاً ومشجعاً لا يتجاوز جملتين، ثم السؤال مباشرةً."
+        )
+    else:
+        system_prompt = (
+            f"You are a professional AI interviewer for the role of '{role}' in the field of '{field}'. {lang_instruction}\n"
+            "Begin the session by warmly greeting the candidate, briefly introducing yourself as an AI interview coach, "
+            "explaining that the interview will include several questions with a full evaluation report at the end, "
+            "then immediately ask your first relevant interview question for this role. "
+            "Keep the introduction warm and encouraging — no more than two sentences — then go straight to the question."
+        )
 
     messages = [{"role": "system", "content": system_prompt}]
     first_q  = get_ai_client().chat(messages, feature=feature, max_tokens=300)
