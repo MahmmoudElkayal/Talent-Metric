@@ -1698,17 +1698,37 @@ const TalentMetric = {
             // Build Main Routing Table
             const tbody = document.getElementById('adminRoutingRows');
             if(tbody) {
+                const listMap = {
+                    'openrouter': 'orModelsList',
+                    'openai': 'oaiModelsList',
+                    'huggingface': 'hfModelsList',
+                    'ollama': 'commonModelsList',
+                    'lmstudio': 'commonModelsList'
+                };
                 tbody.innerHTML = features.map(f => {
                     const curOverride = data.routing_overrides?.[f] || {};
                     const options = `<option value="">— Active Provider —</option>` + providers.map(p => `<option value="${p}" ${curOverride.provider===p?'selected':''}>${providerLabels[p]||p}</option>`).join('');
+                    const listId = listMap[curOverride.provider] || 'commonModelsList';
                     return `
                         <tr>
                             <td><span class="feature-label"><i class="fas ${featureIcons[f]||'fa-cog'}"></i>${featureLabels[f]}</span></td>
                             <td><select class="routing-provider-select" data-feature="${f}">${options}</select></td>
-                            <td><input type="text" class="routing-model-input" list="commonModelsList" data-feature="${f}" value="${curOverride.model||''}" placeholder="Inherit default"></td>
+                            <td><input type="text" class="routing-model-input" list="${listId}" data-feature="${f}" value="${curOverride.model||''}" placeholder="Inherit default"></td>
                         </tr>
                     `;
                 }).join('');
+
+                // Wire up change listener on provider selects to switch list dynamic
+                tbody.querySelectorAll('.routing-provider-select').forEach(select => {
+                    select.addEventListener('change', (e) => {
+                        const feature = e.target.dataset.feature;
+                        const provider = e.target.value;
+                        const input = tbody.querySelector(`.routing-model-input[data-feature="${feature}"]`);
+                        if (input) {
+                            input.setAttribute('list', listMap[provider] || 'commonModelsList');
+                        }
+                    });
+                });
             }
 
             // Provider fields
